@@ -1,30 +1,6 @@
-use clap::{arg, Command};
-
+mod cli;
 mod db;
 mod runner;
-
-fn cli() -> Command {
-    Command::new("win-app-runner")
-        .about("A wrapper for running difficult to find Windows Store apps")
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .allow_external_subcommands(true)
-        .subcommand(
-            Command::new("open")
-                .about("open an app")
-                .arg(arg!(<APP> "The app to open"))
-                .arg_required_else_help(true),
-        )
-        .subcommand(
-            Command::new("add")
-                .about("add an app to the database")
-                .arg(arg!(<APP> "Nice name for app"))
-                .arg(arg!(<EXE_NAME> "Exe to run"))
-                .arg(arg!(<SEARCH_TERM> "Text to search for app on"))
-                .arg(arg!(<SEARCH_METHOD> "Method to search against"))
-                .arg_required_else_help(true),
-        )
-}
 
 #[tokio::main]
 async fn main() {
@@ -33,46 +9,44 @@ async fn main() {
     //   - The "add" puts an entry in a local SQLLite database
     // -Command line params to "open" an app
 
-    let matches = cli().get_matches();
+    // "C:\Users\paul\AppData\Local\JetBrains\Toolbox\apps\Rider\ch-0\223.8617.53\bin\rider64.exe"
+
+    let matches = cli::get_cli().get_matches();
 
     db::create_db().await;
 
     match matches.subcommand() {
-        Some(("open", sub_matches)) => {
-            let app_param = sub_matches
-                .get_one::<String>("APP")
-                .map(|s| s.as_str())
-                .expect("required");
-
-            let app = db:: get_app(app_param).await;
+        Some((cli::ACTION_OPEN, sub_matches)) => {
+            let action_open = cli::get_action_open(sub_matches);
+            let app = db::get_app(&action_open.app).await;
             runner::run_app(app);
         }
-        Some(("add", sub_matches)) => {
-            let app = sub_matches
-                .get_one::<String>("APP")
-                .map(|s| s.as_str())
-                .expect("required");
-            let exe_name = sub_matches
-                .get_one::<String>("EXE_NAME")
-                .map(|s| s.as_str())
-                .expect("required");
-            let search_term = sub_matches
-                .get_one::<String>("SEARCH_TERM")
-                .map(|s| s.as_str())
-                .expect("required");
-            let search_method = sub_matches
-                .get_one::<String>("SEARCH_METHOD")
-                .map(|s| s.as_str())
-                .expect("required");
+        Some((cli::ACTION_ADD, sub_matches)) => {
+            let action_add = cli::get_action_add(sub_matches);
 
-            db::add_app(app, exe_name, search_term, search_method).await;
+            db::add_app(
+                &action_add.app,
+                &action_add.exe_name,
+                &action_add.search_term,
+                &action_add.search_method,
+            )
+            .await;
+        }
+        Some((cli::ACTION_TESTINGS, _sub_matches)) => {
+            println!("Testing!");
+            /*
+            let root_folder = runner::get_local_app_data_folder();
+            //let root_folder = r#"C:\Users\paul\AppData\Local\JetBrains\Toolbox\apps\Rider\ch-0"#;
 
-            println!(
-                "Adding app {} with exename {} with searchterm {} using searchmethod {}",
-                app, exe_name, search_term, search_method
-            );
+            println!("Root folder: {}", root_folder);
+            let result = runner::find_file_in_folders(&root_folder, "rider64.exe");
+            match result {
+                Ok(_) => println!("Found file"),
+                Err(e) => eprintln!("Failed to find file: {:?}", e),
+            }
+
+            */
         }
         _ => unreachable!(),
     }
 }
-

@@ -1,4 +1,7 @@
-use sqlx::{migrate::{MigrateDatabase, Migrator}, FromRow, Sqlite, SqlitePool};
+use sqlx::{
+    migrate::{MigrateDatabase, Migrator},
+    FromRow, Sqlite, SqlitePool,
+};
 
 const DB_URL: &str = "sqlite://sqlite.db";
 
@@ -25,9 +28,7 @@ pub async fn create_db() {
 
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    let migration_results = MIGRATOR
-        .run(&db)
-        .await;
+    let migration_results = MIGRATOR.run(&db).await;
 
     match migration_results {
         Ok(_) => println!("Migration success"),
@@ -55,6 +56,10 @@ pub async fn add_app(app: &str, exe_name: &str, search_term: &str, search_method
     .unwrap();
 
     println!("Query result: {:?}", result);
+    println!(
+        "Added app {} with exename {} with searchterm {} using searchmethod {}",
+        app, exe_name, search_term, search_method
+    );
 }
 
 pub async fn get_app(app: &str) -> App {
