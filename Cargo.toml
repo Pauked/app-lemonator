@@ -1,0 +1,12 @@
+[package]
+name = "win-app-runner"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+powershell_script = "1.1"
+clap = { version = "4", features = ["derive"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite"]}
+tokio = { version = "1.29", features = ["macros", "rt-multi-thread"]}
