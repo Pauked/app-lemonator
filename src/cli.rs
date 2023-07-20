@@ -1,93 +1,49 @@
-use clap::{arg, ArgMatches, Command};
+use clap::{Parser, Subcommand, ValueEnum};
+use strum_macros::EnumString;
+use strum_macros::Display;
 
-pub const ACTION_OPEN: &str = "open";
-pub const ACTION_ADD: &str = "add";
-pub const ACTION_DELETE: &str = "delete";
-pub const ACTION_TESTINGS: &str = "testings";
-
-pub const PARAM_APP: &str = "APP";
-pub const PARAM_EXE_NAME: &str = "EXE_NAME";
-pub const PARAM_SEARCH_TERM: &str = "SEARCH_TERM";
-pub const PARAM_SEARCH_METHOD: &str = "SEARCH_METHOD";
-
-pub const MSG_REQUIRED: &str = "This is a required parameter";
-
-pub struct ActionAdd {
-    pub app: String,
-    pub exe_name: String,
-    pub search_term: String,
-    pub search_method: String,
+#[derive(Parser, Debug)]
+pub struct Args {
+    #[clap(subcommand)]
+    pub action: Action,
 }
 
-pub struct ActionOpen {
-    pub app: String,
+#[derive(Subcommand, Debug)]
+pub enum Action {
+    /// Opens an app.
+    Open {
+        app: String,
+    },
+
+    /// Adds an app to the database.
+    Add {
+        /// Nice name for app.
+        app: String,
+        /// Executable to find and run. For Shortcuts, can be full path and exe.
+        exe_name: String,
+        /// Search text for app.
+        search_term: String,
+        /// Search method to find app.
+        #[clap(value_enum)]
+        search_method: SearchMethod,
+    },
+
+    /// Deletes the app from the database.
+    Delete {
+        app: String,
+    },
+    Testings,
 }
 
-// TODO: Add a "delete" action
-
-pub fn get_cli() -> Command {
-    Command::new("win-app-runner")
-        .about("A wrapper for running difficult to find Windows Store apps")
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .allow_external_subcommands(true)
-        .subcommand(
-            Command::new(ACTION_OPEN)
-                .about("open an app")
-                .arg(arg!(<APP> "The app to open"))
-                .arg_required_else_help(true),
-        )
-        .subcommand(
-            Command::new(ACTION_ADD)
-                .about("add an app to the database")
-                .arg(arg!(<APP> "Nice name for app"))
-                .arg(arg!(<EXE_NAME> "Exe to run"))
-                .arg(arg!(<SEARCH_TERM> "Text to search for app on"))
-                .arg(arg!(<SEARCH_METHOD> "Method to search against"))
-                .arg_required_else_help(true),
-        )
-        .subcommand(
-            Command::new(ACTION_DELETE)
-                .about("delete an app from the database")
-                .arg(arg!(<APP> "The app to delete"))
-                .arg_required_else_help(true),
-        )
-        .subcommand(Command::new(ACTION_TESTINGS))
-}
-
-pub fn get_action_open(arg_matches: &ArgMatches) -> ActionOpen {
-    let app_param = arg_matches
-        .get_one::<String>(PARAM_APP)
-        .map(|s| s.as_str())
-        .expect(MSG_REQUIRED);
-
-    ActionOpen {
-        app: app_param.to_owned(),
-    }
-}
-
-pub fn get_action_add(arg_matches: &ArgMatches) -> ActionAdd {
-    let app = arg_matches
-        .get_one::<String>(PARAM_APP)
-        .map(|s| s.as_str())
-        .expect(MSG_REQUIRED);
-    let exe_name = arg_matches
-        .get_one::<String>(PARAM_EXE_NAME)
-        .map(|s| s.as_str())
-        .expect(MSG_REQUIRED);
-    let search_term = arg_matches
-        .get_one::<String>(PARAM_SEARCH_TERM)
-        .map(|s| s.as_str())
-        .expect(MSG_REQUIRED);
-    let search_method = arg_matches
-        .get_one::<String>(PARAM_SEARCH_METHOD)
-        .map(|s| s.as_str())
-        .expect(MSG_REQUIRED);
-
-    ActionAdd {
-        app: app.to_owned(),
-        exe_name: exe_name.to_owned(),
-        search_term: search_term.to_owned(),
-        search_method: search_method.to_owned(),
-    }
+#[derive(ValueEnum, Clone, Debug, Display, EnumString)]
+pub enum SearchMethod {
+    /// Uses PowerShell to run the Get-AppXPackage cmdlet to retrieve InstallLocation.
+    #[value(alias("PSGetApp"))]
+    PSGetApp,
+    /// Given a root folder, it will recursively search for the app.
+    #[value(alias("FolderSearch"))]
+    FolderSearch,
+    /// Just runs the app directly. No lookups, you provide the full path.
+    #[value(alias("Shortcut"))]
+    Shortcut,
 }

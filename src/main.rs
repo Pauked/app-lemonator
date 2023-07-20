@@ -1,36 +1,63 @@
+use clap::Parser;
+
 mod cli;
 mod db;
+mod paths;
 mod runner;
 
 #[tokio::main]
 async fn main() {
-    // What I'm trying to achieve
-    // -Command line params to "add" or "delete" an app
-    //   - The "add" puts an entry in a local SQLLite database
-    // -Command line params to "open" an app
+    let args = cli::Args::parse();
+    println!("{:?}", args);
 
-    // "C:\Users\paul\AppData\Local\JetBrains\Toolbox\apps\Rider\ch-0\223.8617.53\bin\rider64.exe"
+    db::create_db().await;
 
+    match args.action {
+        cli::Action::Open { app } => {
+            let app = db::get_app(&app).await;
+            runner::run_app(app);
+        }
+        cli::Action::Add {
+            app,
+            exe_name,
+            search_term,
+            search_method,
+        } => {
+            db::add_app(&app, &exe_name, &search_term, search_method).await;
+        }
+        cli::Action::Delete { app } => {
+            db::delete_app(&app).await;
+        }
+        cli::Action::Testings {} => {
+            println!("Testing!");
+        }
+    }
+
+    /*
     let matches = cli::get_cli().get_matches();
 
     db::create_db().await;
 
     match matches.subcommand() {
         Some((cli::ACTION_OPEN, sub_matches)) => {
-            let action_open = cli::get_action_open(sub_matches);
-            let app = db::get_app(&action_open.app).await;
+            let action = cli::get_action_open(sub_matches);
+            let app = db::get_app(&action.app).await;
             runner::run_app(app);
         }
         Some((cli::ACTION_ADD, sub_matches)) => {
-            let action_add = cli::get_action_add(sub_matches);
+            let action = cli::get_action_add(sub_matches);
 
             db::add_app(
-                &action_add.app,
-                &action_add.exe_name,
-                &action_add.search_term,
-                &action_add.search_method,
+                &action.app,
+                &action.exe_name,
+                &action.search_term,
+                &action.search_method,
             )
             .await;
+        }
+        Some((cli::ACTION_DELETE, sub_matches)) => {
+            let action = cli::get_action_delete(sub_matches);
+            db::delete_app(&action.app).await;
         }
         Some((cli::ACTION_TESTINGS, _sub_matches)) => {
             println!("Testing!");
@@ -49,4 +76,5 @@ async fn main() {
         }
         _ => unreachable!(),
     }
+    */
 }

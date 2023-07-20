@@ -3,9 +3,11 @@ use sqlx::{
     FromRow, Sqlite, SqlitePool,
 };
 
+use crate::cli::SearchMethod;
+
 const DB_URL: &str = "sqlite://sqlite.db";
 
-static MIGRATOR: Migrator = sqlx::migrate!();
+static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations from the ./migrations directory
 
 #[derive(Clone, FromRow, Debug)]
 pub struct App {
@@ -39,7 +41,7 @@ pub async fn create_db() {
     println!("migration: {:?}", migration_results);
 }
 
-pub async fn add_app(app: &str, exe_name: &str, search_term: &str, search_method: &str) {
+pub async fn add_app(app: &str, exe_name: &str, search_term: &str, search_method: SearchMethod) {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
     // TODO: Check app doesn't exist already
@@ -50,7 +52,7 @@ pub async fn add_app(app: &str, exe_name: &str, search_term: &str, search_method
     .bind(app)
     .bind(exe_name)
     .bind(search_term)
-    .bind(search_method)
+    .bind(search_method.to_string())
     .execute(&db)
     .await
     .unwrap();
@@ -75,3 +77,16 @@ pub async fn get_app(app: &str) -> App {
 
     result
 }
+
+pub async fn delete_app(app: &str) {
+    let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+    let delete_result = sqlx::query("DELETE FROM apps WHERE app=$1 COLLATE NOCASE")
+        .bind(app.to_lowercase())
+        .execute(&db)
+        .await
+        .unwrap();
+
+    println!("Delete result: {:?}", delete_result);
+}
+

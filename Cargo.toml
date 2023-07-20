@@ -11,3 +11,6 @@ clap = { version = "4", features = ["derive"] }
 sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite"]}
 tokio = { version = "1.29", features = ["macros", "rt-multi-thread"]}
 colored = "2"
+strum = "0.25"
+strum_macros = "0.25"
+regex = "1.9"
