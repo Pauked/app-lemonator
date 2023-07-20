@@ -81,6 +81,43 @@ pub fn get_base_search_folder(source_folder: &str) -> String {
     output
 }
 
+/*
+pub fn get_file_versioning() {
+    let filename = r#"C:\Users\bob\AppData\Local\JetBrains\Toolbox\apps\Rider\ch-0\231.9161.46\bin\rider64.exe"#;
+
+    //let h_instance = HINSTANCE::NULL;
+    let version_info = winsafe::GetFileVersionInfo(&filename);
+
+    if let Ok(version_info) = version_info {
+        let file_version = version_info.file_version();
+        println!(
+            "Version: {}.{}.{}.{} for file {}",
+            file_version.major(),
+            file_version.minor(),
+            file_version.patch(),
+            file_version.build(),
+            filename
+        );
+    } else {
+        println!("Failed to retrieve file version information.");
+    }
+
+}
+*/
+/*
+    PowerShell method to get file version info
+https://stackoverflow.com/questions/30686/get-file-version-in-powershell
+
+    Needs v5 of PowerShell
+
+PS C:\Users\paul> (Get-Item C:\Users\paul\AppData\Local\JetBrains\Toolbox\apps\Rider\ch-0\231.9161.46\bin\rider64.exe).VersionInfo.FileVersionRaw
+
+Major  Minor  Build  Revision
+-----  -----  -----  --------
+2023   1      3      0
+
+
+*/
 
 #[cfg(test)]
 mod tests {
@@ -99,3 +136,4 @@ mod tests {
         assert_eq!(actual, expected);
     }
 }
+

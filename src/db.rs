@@ -90,3 +90,16 @@ pub async fn delete_app(app: &str) {
     println!("Delete result: {:?}", delete_result);
 }
 
+pub async fn get_apps() -> Vec<App> {
+    let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+    let result = sqlx::query_as::<_, App>("SELECT * FROM apps")
+        .fetch_all(&db)
+        .await
+        .unwrap();
+
+    println!("Query result: {:?}", result);
+
+    result
+}
+

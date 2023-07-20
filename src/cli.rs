@@ -32,6 +32,11 @@ pub enum Action {
     Delete {
         app: String,
     },
+
+    /// Lists all apps in the database.
+    List,
+
+    /// Testings, sssssh.
     Testings,
 }
 
