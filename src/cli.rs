@@ -12,13 +12,13 @@ pub struct Args {
 pub enum Action {
     /// Opens an app.
     Open {
-        app: String,
+        app_name: String,
     },
 
     /// Adds an app to the database.
     Add {
         /// Nice name for app.
-        app: String,
+        app_name: String,
         /// Executable to find and run. For Shortcuts, can be full path and exe.
         exe_name: String,
         /// Search text for app.
@@ -30,7 +30,7 @@ pub enum Action {
 
     /// Deletes the app from the database.
     Delete {
-        app: String,
+        app_name: String,
     },
 
     /// Lists all apps in the database.

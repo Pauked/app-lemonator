@@ -54,8 +54,8 @@ pub fn get_local_app_data_folder() -> String {
 
 pub fn get_base_search_folder(source_folder: &str) -> String {
 
-    println!("Source folder: {}", source_folder);
-    let mut output = String::new();
+    println!("Source folder: '{}'", source_folder);
+    let mut output = source_folder.to_string();
 
     // Look for special flags... at the start of the folder
     let re = Regex::new(r#"%([^%]+)%"#).unwrap();
@@ -69,10 +69,10 @@ pub fn get_base_search_folder(source_folder: &str) -> String {
                 env_var_value = get_local_app_data_folder();
             }
             _ => {
-                eprintln!("Unknown environment variable: {}", captured_value);
+                eprintln!("Unknown environment variable: '{}'", captured_value);
             }
         }
-        println!("Environment variable: {}", env_var_value);
+        println!("Environment variable: '{}'", env_var_value);
         output = re.replace_all(source_folder, env_var_value.as_str()).to_string();
 
         println!("Output: {}", output);
@@ -80,44 +80,6 @@ pub fn get_base_search_folder(source_folder: &str) -> String {
 
     output
 }
-
-/*
-pub fn get_file_versioning() {
-    let filename = r#"C:\Users\bob\AppData\Local\JetBrains\Toolbox\apps\Rider\ch-0\231.9161.46\bin\rider64.exe"#;
-
-    //let h_instance = HINSTANCE::NULL;
-    let version_info = winsafe::GetFileVersionInfo(&filename);
-
-    if let Ok(version_info) = version_info {
-        let file_version = version_info.file_version();
-        println!(
-            "Version: {}.{}.{}.{} for file {}",
-            file_version.major(),
-            file_version.minor(),
-            file_version.patch(),
-            file_version.build(),
-            filename
-        );
-    } else {
-        println!("Failed to retrieve file version information.");
-    }
-
-}
-*/
-/*
-    PowerShell method to get file version info
-https://stackoverflow.com/questions/30686/get-file-version-in-powershell
-
-    Needs v5 of PowerShell
-
-PS C:\Users\paul> (Get-Item C:\Users\paul\AppData\Local\JetBrains\Toolbox\apps\Rider\ch-0\231.9161.46\bin\rider64.exe).VersionInfo.FileVersionRaw
-
-Major  Minor  Build  Revision
------  -----  -----  --------
-2023   1      3      0
-
-
-*/
 
 #[cfg(test)]
 mod tests {
