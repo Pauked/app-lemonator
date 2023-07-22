@@ -1,6 +1,5 @@
-use std::{path::Path, env, fs};
+use std::{path::{Path, PathBuf}, env, fs};
 
-use colored::Colorize;
 use regex::Regex;
 
 const LOCALAPPDATA: &str = "localappdata";
@@ -9,17 +8,18 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
     if let Ok(entries) = fs::read_dir(root_folder) {
         for entry in entries.flatten() {
             let path = entry.path();
-            let file_name = path.file_name().unwrap().to_string_lossy();
-            let folder = path.parent().unwrap().to_string_lossy();
+            let file_name = path.file_name().unwrap();
+            let folder = path.parent().unwrap();
 
             if path.is_dir() {
                 if let Some(path_str) = path.to_str() {
                     find_file_in_folders(path_str, find_file, results);
                 }
-            } else if path.is_file() && file_name.to_lowercase() == find_file.to_lowercase() {
-                let full_file = format!("{}\\{}", folder, file_name);
-                results.push(full_file.clone());
-                println!("Found file: {}", full_file.red());
+            } else if path.is_file() && file_name.to_string_lossy().to_lowercase() == find_file.to_lowercase() {
+                let mut full_file = PathBuf::from(folder);
+                full_file.push(file_name);
+                results.push(full_file.display().to_string());
+                println!("Found file: {}", full_file.display());
             }
         }
     }
@@ -83,13 +83,17 @@ pub fn get_base_search_folder(source_folder: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use crate::paths::{get_local_app_data_folder, get_base_search_folder};
 
     #[test]
     fn check_local_app_data_folder() {
         // Arrange
         let source_path = r#"%localappdata%\JetBrains"#;
-        let expected = format!("{}\\JetBrains", get_local_app_data_folder());
+        let mut file_path = PathBuf::from(get_local_app_data_folder());
+        file_path.push("JetBrains");
+        let expected = file_path.display().to_string();
 
         // Act
         let actual = get_base_search_folder(source_path);

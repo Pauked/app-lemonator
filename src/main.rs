@@ -16,6 +16,9 @@ mod runner;
     TODO: Add "shortcut" option. Run app with no search term. May need to tweak input arguments.
     TODO: Add a reset option. Nukes the DB and recreates it.
     TODO: Add params field to apps table. Allows for passing of params to exe.
+    TODO: Make cross platform. MacOS and Windows. Rework path code with PathBuf.
+    TODO: Add an admin drive search option
+    TODO: Handle WhatsApp and it's weird folder "C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2327.6.0_x64__cv1g1gvanyjgm\WhatsApp.exe"
 */
 
 #[tokio::main]

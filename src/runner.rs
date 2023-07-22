@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{process::Command, path::PathBuf};
 
 use powershell_script::PsScriptBuilder;
 
@@ -58,10 +58,10 @@ fn run_powershell_getxapppackage(app: db::App) {
     ));
 
     let app_path = get_property_from_stdout(stdout_strings, "InstallLocation : ");
-    //println!("App path: {}", app_path);
-    let full_app_name = format!("{}\\{}", app_path, app.exe_name);
+    let mut full_app_name = PathBuf::from(&app_path);
+    full_app_name.push(&app.exe_name);
 
-    open_process(app, &full_app_name);
+    open_process(app, &full_app_name.to_string_lossy());
 }
 
 #[derive(Debug)]
