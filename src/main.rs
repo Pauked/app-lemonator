@@ -3,11 +3,14 @@ use colored::Colorize;
 
 mod cli;
 mod db;
+mod finder;
 mod paths;
 mod runner;
 
 #[tokio::main]
 async fn main() {
+    println!("{}", welcome_to_lemonator());
+
     let args = cli::Args::parse();
     //println!("{:?}", args);
 
@@ -17,7 +20,7 @@ async fn main() {
         cli::Action::Open { app_name } => {
             match db::get_app(&app_name).await {
                 Ok(app) => {
-                    runner::run_app(app);
+                    runner::run_app(app).await;
                 }
                 Err(_) => {
                     eprintln!("App '{}' not found", app_name.red());
@@ -46,4 +49,12 @@ async fn main() {
             println!("Testing!");
         }
     }
+}
+
+fn welcome_to_lemonator() -> String {
+    let mut welcome = String::new();
+    welcome.push_str("Welcome to ");
+    welcome.push_str("Lemonator".yellow().to_string().as_str());
+    welcome.push('!');
+    welcome
 }

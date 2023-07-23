@@ -3,6 +3,12 @@ use strum_macros::EnumString;
 use strum_macros::Display;
 
 #[derive(Parser, Debug)]
+#[command(
+    name = "App Lemonator",
+    version = "0.1.0",
+    author = "Paul",
+    about = "Keeps the running of your apps lemony fresh!"
+)]
 pub struct Args {
     #[clap(subcommand)]
     pub action: Action,
