@@ -18,6 +18,10 @@ pub struct FileVersion {
 }
 
 fn run_powershell_cmd(powershell_cmd: &str) -> Vec<String> {
+    #[cfg(target_os = "macos")]
+    // FIXME: Rework code so you CANNOT get here
+    panic!("Powershell is not supported on Mac");
+
     let ps = PsScriptBuilder::new()
         .no_profile(true)
         .non_interactive(true)
@@ -51,8 +55,6 @@ pub fn get_powershell_getxapppackage(app: db::App) -> Result<String, Error> {
     let app_path = get_property_from_stdout(stdout_strings, "InstallLocation : ");
     let mut full_app_name = PathBuf::from(&app_path);
     full_app_name.push(&app.exe_name);
-
-    //open_process(app, &full_app_name.to_string_lossy());
 
     Ok(full_app_name.to_string_lossy().to_string())
 }
@@ -118,14 +120,12 @@ pub fn get_folder_search(app: db::App) -> Result<String, Error> {
 
         return Ok(highest_version.app.clone());
     } else if env::consts::OS == "macos" && files.len() == 1 {
+        // FIXME: This is a hack for now. Need file versio checking for Mac.
         println!("App found: {:?}", files[0].clone());
         return Ok(files[0].clone());
     }
 
     Err(Error::new(ErrorKind::Unsupported, "Unsupported OS"))
-
-    // Open it fella!
-    //open_process(app, highest_version.app.as_str());
 }
 
 pub fn get_shortcut(app: db::App) -> Result<String, Error> {
