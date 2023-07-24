@@ -5,6 +5,8 @@ use regex::Regex;
 const LOCALAPPDATA: &str = "localappdata";
 
 pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Vec<String>) {
+    println!("find_file_in_folders: {}", root_folder);
+
     if let Ok(entries) = fs::read_dir(root_folder) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -29,6 +31,13 @@ pub fn folder_exists(folder_path: &str) -> bool {
     let path = Path::new(folder_path);
     path.is_dir()
 }
+
+/*
+pub fn file_exists(file_path: &str) -> bool {
+    let path = Path::new(file_path);
+    path.is_file()
+}
+*/
 
 fn get_environment_folder(name: &str) -> String {
     if let Ok(appdata) = env::var(name) {
@@ -83,10 +92,13 @@ pub fn get_base_search_folder(source_folder: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "windows")]
     use std::path::PathBuf;
 
+    #[cfg(target_os = "windows")]
     use crate::paths::{get_local_app_data_folder, get_base_search_folder};
 
+    #[cfg(target_os = "windows")]
     #[test]
     fn check_local_app_data_folder() {
         // Arrange

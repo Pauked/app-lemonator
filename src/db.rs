@@ -19,7 +19,7 @@ pub struct App {
     pub search_term: String,
     pub search_method: String,
     pub found_path: Option<String>,
-    pub last_run: Option<NaiveDate>,
+    pub last_run: Option<String>,
     pub last_update: Option<NaiveDate>,
 }
 

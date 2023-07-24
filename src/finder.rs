@@ -1,4 +1,8 @@
-use std::{path::PathBuf, io::{ErrorKind, Error}};
+use std::{
+    env,
+    io::{Error, ErrorKind},
+    path::PathBuf,
+};
 
 use powershell_script::PsScriptBuilder;
 
@@ -74,37 +78,68 @@ fn get_file_version(full_path: &str) -> FileVersion {
 }
 
 pub fn get_folder_search(app: db::App) -> Result<String, Error> {
+    println!("get_folder_search");
     let mut files: Vec<String> = Vec::new();
 
     let base_search_folder = paths::get_base_search_folder(&app.search_term);
+    println!("base_search_folder: {}", &base_search_folder);
     if !paths::folder_exists(&base_search_folder) {
-        return Err(Error::new(ErrorKind::InvalidData, format!("Folder '{}' does not exist", &base_search_folder)));
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Folder '{}' does not exist", &base_search_folder),
+        ));
     }
 
     paths::find_file_in_folders(&base_search_folder, &app.exe_name, &mut files);
 
     if files.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidData, format!("Failed to find file '{}'", &app.exe_name)));
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Failed to find file '{}'", &app.exe_name),
+        ));
     }
 
-    // Get version details for all found files
-    let mut file_versions: Vec<FileVersion> = Vec::new();
-    for file in &files {
-        println!("File: '{}'", file);
-        let file_version = get_file_version(file);
-        println!("File version: {:?}", file_version);
-        file_versions.push(file_version);
+    if env::consts::OS == "windows" {
+        // Get version details for all found files
+        let mut file_versions: Vec<FileVersion> = Vec::new();
+        for file in &files {
+            println!("File: '{}'", file);
+            let file_version = get_file_version(file);
+            println!("File version: {:?}", file_version);
+            file_versions.push(file_version);
+        }
+
+        // Now found the highest versioned file
+        let highest_version = file_versions
+            .iter()
+            .max_by_key(|v| (v.major, v.minor, v.build, v.revision))
+            .unwrap();
+        println!("Highest version: {:?}", &highest_version);
+
+        return Ok(highest_version.app.clone());
+    } else if env::consts::OS == "macos" && files.len() == 1 {
+        println!("App found: {:?}", files[0].clone());
+        return Ok(files[0].clone());
     }
 
-    // Now found the highest versioned file
-    let highest_version = file_versions
-        .iter()
-        .max_by_key(|v| (v.major, v.minor, v.build, v.revision))
-        .unwrap();
-    println!("Highest version: {:?}", &highest_version);
+    Err(Error::new(ErrorKind::Unsupported, "Unsupported OS"))
 
     // Open it fella!
     //open_process(app, highest_version.app.as_str());
+}
 
-    Ok(highest_version.app.clone())
+pub fn get_shortcut(app: db::App) -> Result<String, Error> {
+    println!("get_shortcut_search");
+
+    let mut path = PathBuf::from(&app.search_term);
+    path.push(&app.exe_name);
+    //Ok(path.to_string_lossy().to_string())
+    if paths::folder_exists(&path.to_string_lossy()) {
+        return Ok(path.to_string_lossy().to_string());
+    }
+
+    Err(Error::new(
+            ErrorKind::NotFound,
+            format!("Failed to find file '{}'", path.to_string_lossy()),
+    ))
 }
