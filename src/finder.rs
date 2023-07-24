@@ -133,8 +133,8 @@ pub fn get_shortcut(app: db::App) -> Result<String, Error> {
 
     let mut path = PathBuf::from(&app.search_term);
     path.push(&app.exe_name);
-    //Ok(path.to_string_lossy().to_string())
-    if paths::folder_exists(&path.to_string_lossy()) {
+
+    if paths::check_app_exists(&path.to_string_lossy()) {
         return Ok(path.to_string_lossy().to_string());
     }
 

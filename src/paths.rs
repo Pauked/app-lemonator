@@ -32,12 +32,17 @@ pub fn folder_exists(folder_path: &str) -> bool {
     path.is_dir()
 }
 
-/*
 pub fn file_exists(file_path: &str) -> bool {
     let path = Path::new(file_path);
     path.is_file()
 }
-*/
+
+pub fn check_app_exists(app_path: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    return folder_exists(app_path);
+    #[cfg(target_os = "windows")]
+    return file_exists(app_path);
+}
 
 fn get_environment_folder(name: &str) -> String {
     if let Ok(appdata) = env::var(name) {

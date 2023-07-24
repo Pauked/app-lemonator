@@ -106,7 +106,7 @@ pub async fn update_app_found_path(app: &str, id: i32, found_path: &str) {
 
     match update_result {
         Ok(_) => {
-            println!("Updated app '{}'", app.blue());
+            println!("Updated app for found_path '{}'", app.blue());
         }
         Err(error) => {
             panic!("error: {}", error);
@@ -125,7 +125,7 @@ pub async fn update_last_run(app: &str, id: i32) {
 
     match update_result {
         Ok(_) => {
-            println!("Updated app '{}'", app.blue());
+            println!("Updated app for last_run datetime '{}'", app.blue());
         }
         Err(error) => {
             panic!("error: {}", error);
@@ -159,7 +159,9 @@ pub async fn get_apps() -> Vec<App> {
         .await;
 
     match result {
-        Ok(apps) => return apps,
+        Ok(apps) => {
+            return apps;
+        }
         Err(error) => {
             panic!("error: {}", error);
         }
