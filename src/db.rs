@@ -4,6 +4,7 @@ use sqlx::{
     migrate::{MigrateDatabase, Migrator},
     FromRow, Sqlite, SqlitePool,
 };
+use tabled::Tabled;
 
 use crate::cli::SearchMethod;
 
@@ -11,16 +12,36 @@ const DB_URL: &str = "sqlite://sqlite.db";
 
 static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations from the ./migrations directory
 
-#[derive(Clone, FromRow, Debug)]
+#[derive(Clone, FromRow, Tabled, Debug)]
 pub struct App {
+    #[tabled(skip)]
     pub id: i32,
     pub app_name: String,
     pub exe_name: String,
     pub search_term: String,
     pub search_method: String,
+    #[tabled(display_with = "display_option_string")]
+    //#[tabled(skip)]
     pub found_path: Option<String>,
+    #[tabled(display_with = "display_option_string")]
     pub last_run: Option<String>,
+    #[tabled(display_with = "display_option_naivedate")]
+    //#[tabled(skip)]
     pub last_update: Option<NaiveDate>,
+}
+
+fn display_option_string(o: &Option<String>) -> String {
+    match o {
+        Some(s) => s.to_string(),
+        None => "N/A".to_string(),
+    }
+}
+
+fn display_option_naivedate(o: &Option<NaiveDate>) -> String {
+    match o {
+        Some(s) => s.to_string(),
+        None => "N/A".to_string(),
+    }
 }
 
 pub async fn create_db() {
