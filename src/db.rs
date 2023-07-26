@@ -1,3 +1,5 @@
+use std::fs;
+
 use chrono::{NaiveDate, Utc};
 use colored::Colorize;
 use sqlx::{
@@ -9,6 +11,7 @@ use tabled::Tabled;
 use crate::cli::SearchMethod;
 
 const DB_URL: &str = "sqlite://sqlite.db";
+const DB_FILE: &str = "sqlite.db";
 
 static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations from the ./migrations directory
 
@@ -179,12 +182,17 @@ pub async fn get_apps() -> Vec<App> {
         .fetch_all(&db)
         .await;
 
-    match result {
-        Ok(apps) => {
-            return apps;
-        }
-        Err(error) => {
-            panic!("error: {}", error);
-        }
-    };
+    if result.is_err() {
+        panic!("Error getting App listing: {}", result.err().unwrap());
+    }
+
+    result.unwrap()
+}
+
+pub fn reset_db() {
+    // Delete the database file.
+    match fs::remove_file(DB_FILE) {
+        Ok(_) => println!("Database file deleted successfully."),
+        Err(e) => log::error!("Error while deleting the database file: {}", e),
+    }
 }

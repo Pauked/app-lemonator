@@ -42,6 +42,9 @@ pub enum Action {
     /// Lists all apps in the database.
     List,
 
+    /// Resets the database.
+    Reset,
+
     /// Testings, sssssh.
     Testings,
 }

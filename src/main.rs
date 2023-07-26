@@ -1,5 +1,6 @@
 use clap::Parser;
 use colored::Colorize;
+use dialoguer::{theme::ColorfulTheme, Confirm};
 use tabled::settings::{object::Rows, Modify, Width};
 
 mod cli;
@@ -11,11 +12,17 @@ mod runner;
 #[tokio::main]
 async fn main() {
     //env_logger::init();
-    log4rs::init_file("logging_config.yaml", Default::default()).unwrap();
-    log::info!("{}", welcome_to_lemonator());
+    let log_result = log4rs::init_file("logging_config.yaml", Default::default());
+    match log_result {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Failed to init logging: {:?}", e);
+        }
+    }
+    println!("{}", welcome_to_lemonator());
 
     let args = cli::Args::parse();
-    //println!("{:?}", args);
+    log::debug!("Args {:?}", args);
 
     db::create_db().await;
 
@@ -47,6 +54,18 @@ async fn main() {
                 tabled::Table::new(apps)
                     .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
             );
+        }
+        cli::Action::Reset {} => {
+            // Prompt the user for confirmation to delete the file
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Do you want to reset the database? All data will be deleted.")
+                .interact()
+                .unwrap()
+            {
+                db::reset_db();
+            } else {
+                println!("Deletion not confirmed.");
+            }
         }
         cli::Action::Testings {} => {
             println!("Testing!");

@@ -3,7 +3,8 @@ appenders:
     kind: console
     encoder:
       # pattern: "{h({d(%Y-%m-%d %H:%M:%S)(utc)} - {l}: {m}{n})}"
-      pattern: "{h({d(%Y-%m-%d %H:%M:%S)} | {({l}):5.5} | {f}:{L} — {m}{n})}"
+      # pattern: "{h({d(%Y-%m-%d %H:%M:%S)} | {({l}):5.5} | {f}:{L} — {m}{n})}"
+      pattern: "{h({({l}):5.5} | {m}{n})}"
   my_file_logger:
     kind: file
     path: "log/my.log"
