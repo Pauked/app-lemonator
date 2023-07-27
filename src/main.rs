@@ -26,6 +26,13 @@ async fn main() {
 
     db::create_db().await;
 
+    let result: i32 = run_action(args).await;
+    std::process::exit(result);
+}
+
+async fn run_action(args: cli::Args) -> i32 {
+    let mut exit_code = 0;
+
     match args.action {
         cli::Action::Open { app_name } => match db::get_app(&app_name).await {
             Ok(app) => {
@@ -33,6 +40,7 @@ async fn main() {
             }
             Err(_) => {
                 log::error!("App '{}' not found", app_name);
+                exit_code = 1;
             }
         },
         cli::Action::Add {
@@ -71,6 +79,8 @@ async fn main() {
             println!("Testing!");
         }
     }
+
+    exit_code
 }
 
 fn welcome_to_lemonator() -> String {

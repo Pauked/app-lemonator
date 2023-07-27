@@ -6,6 +6,7 @@ App principles / Defense of Design
 - Give clear error messages.
 
 Todo list:
+TODO: Exit codes when app fails to run or find an app to run it. Check Stream Deck can pick that up! (https://crates.io/crates/proc-exit/1.0.1)
 TODO: Add method to update last run path periodically (or after each run?).
 TODO: Add Tokio tracing for logging.
 TODO: Improve console output. Make consistent. Make tidy. Show app name!
