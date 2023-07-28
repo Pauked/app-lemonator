@@ -1,12 +1,12 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
-use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
-use strum_macros::EnumString;
+use dialoguer::Confirm;
 use strum_macros::Display;
+use strum_macros::EnumString;
+use tabled::settings::object::Rows;
 use tabled::settings::Modify;
 use tabled::settings::Width;
-use tabled::settings::object::Rows;
 
 use crate::db;
 use crate::finder;
@@ -27,11 +27,11 @@ pub struct Args {
 #[derive(Subcommand, Debug)]
 pub enum Action {
     /// Opens an app.
-    Open {
-        app_name: String,
-    },
+    #[clap(short_flag='o')]
+    Open { app_name: String },
 
     /// Adds an app to the database.
+    #[clap(short_flag='a')]
     Add {
         /// Nice name for app.
         app_name: String,
@@ -45,20 +45,22 @@ pub enum Action {
     },
 
     /// Deletes the app from the database.
-    Delete {
-        app_name: String,
-    },
+    #[clap(short_flag='d')]
+    Delete { app_name: String },
 
     /// Update the running folder for selected apps. No app named means all in database.
+    #[clap(short_flag='u')]
     Update {
         /// App name to update.
         app_name: Option<String>,
     },
 
     /// Lists all apps in the database.
+    #[clap(short_flag='l')]
     List,
 
     /// Resets the database.
+    #[clap(short_flag='r')]
     Reset,
 
     /// Testings, sssssh.
@@ -79,17 +81,14 @@ pub enum SearchMethod {
 }
 
 pub async fn run_cli_action(args: Args) -> i32 {
-    let mut exit_code = 0;
+    //let mut exit_code = 0;
 
     match args.action {
-        Action::Open { app_name } => match db::get_app(&app_name).await {
-            Ok(app) => {
-                runner::run_app(app).await;
-            }
-            Err(_) => {
-                log::error!("App '{}' not found", app_name);
-                exit_code = 1;
-            }
+        Action::Open { app_name } => {
+            let app = db::get_app(&app_name).await;
+            println!("Running app '{}'", app.app_name);
+            runner::run_app(app).await;
+            // TODO: If app not found, error code?
         },
         Action::Add {
             app_name,
@@ -102,16 +101,16 @@ pub async fn run_cli_action(args: Args) -> i32 {
         Action::Delete { app_name } => {
             db::delete_app(&app_name).await;
         }
-        Action::Update { app_name } => {
-            match app_name {
-                Some(app_name) => {
-                    finder::update_app(&app_name).await;
-                }
-                None => {
-                    finder::update_all_apps().await;
-                }
+        Action::Update { app_name } => match app_name {
+            Some(app_name) => {
+                let app = db::get_app(&app_name).await;
+                finder::update_app(app).await;
             }
-        }
+            None => {
+                let apps = db::get_apps().await;
+                finder::update_all_apps(apps).await;
+            }
+        },
         Action::List {} => {
             let apps = db::get_apps().await;
             println!("{}", "App Listing".blue());
@@ -135,8 +134,11 @@ pub async fn run_cli_action(args: Args) -> i32 {
         }
         Action::Testings {} => {
             println!("Testing!");
+            let app = db::get_app("rider").await;
+            finder::testings_progress(app);
         }
     }
 
-    exit_code
+    //exit_code
+    0
 }

@@ -5,7 +5,7 @@ use crate::{db, finder};
 pub async fn run_app(app: db::App) {
     let found_path = finder::get_app_path(app.clone());
 
-    if !found_path.is_empty() {
+    if found_path.is_empty() {
         return;
     }
 

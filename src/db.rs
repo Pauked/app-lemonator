@@ -1,6 +1,6 @@
 use std::fs;
 
-use chrono::{NaiveDate, Utc};
+use chrono::{NaiveDate, Utc, DateTime, Datelike, Timelike};
 use colored::Colorize;
 use sqlx::{
     migrate::{MigrateDatabase, Migrator},
@@ -107,26 +107,32 @@ pub async fn add_app(
     }
 }
 
-pub async fn get_app(app: &str) -> Result<App, sqlx::Error> {
+pub async fn get_app(app: &str) -> App {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    sqlx::query_as::<_, App>("SELECT * FROM apps WHERE app_name = ? COLLATE NOCASE")
+    let result = sqlx::query_as::<_, App>("SELECT * FROM apps WHERE app_name = ? COLLATE NOCASE")
         .bind(app.to_lowercase())
         .fetch_one(&db)
-        .await
+        .await;
+
+    if result.is_err() {
+        panic!("Error getting App '{}': {}", app, result.err().unwrap());
+    }
+
+    result.unwrap()
 }
 
 pub async fn update_app_found_path(app: &str, id: i32, found_path: &str) {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    let update_result = sqlx::query(
-        "UPDATE apps SET found_path = $1, last_update = $2 WHERE id=$3 COLLATE NOCASE",
-    )
-    .bind(found_path)
-    .bind(Utc::now().date_naive())
-    .bind(id)
-    .execute(&db)
-    .await;
+    let update_result =
+        sqlx::query("UPDATE apps SET found_path = $1, last_update = $2 WHERE id=$3 COLLATE NOCASE")
+            .bind(found_path)
+            //.bind(Utc::now().date_naive())
+            .bind(format_utc_datetime(Utc::now()))
+            .bind(id)
+            .execute(&db)
+            .await;
 
     match update_result {
         Ok(_) => {
@@ -142,7 +148,7 @@ pub async fn update_last_run(app: &str, id: i32) {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
     let update_result = sqlx::query("UPDATE apps SET last_run = $1 WHERE id=$2 COLLATE NOCASE")
-        .bind(Utc::now())
+        .bind(format_utc_datetime(Utc::now()))
         .bind(id)
         .execute(&db)
         .await;
@@ -195,4 +201,16 @@ pub fn reset_db() {
         Ok(_) => println!("Database file deleted successfully."),
         Err(e) => log::error!("Error while deleting the database file: {}", e),
     }
+}
+
+fn format_utc_datetime(utc_datetime: DateTime<Utc>) -> String {
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        utc_datetime.year(),
+        utc_datetime.month(),
+        utc_datetime.day(),
+        utc_datetime.hour(),
+        utc_datetime.minute(),
+        utc_datetime.second()
+    )
 }

@@ -4,9 +4,11 @@ use std::{
     path::PathBuf,
 };
 
+use indicatif::{ProgressBar, ProgressStyle};
 use powershell_script::PsScriptBuilder;
+use walkdir::WalkDir;
 
-use crate::{db, paths, constants, cli::SearchMethod};
+use crate::{cli::SearchMethod, constants, db, paths};
 
 #[derive(Debug)]
 pub struct FileVersion {
@@ -19,21 +21,10 @@ pub struct FileVersion {
 
 pub fn get_app_path(app: db::App) -> String {
     match app.found_path {
-        Some(found_path) => {
-            found_path
-        }
+        Some(found_path) => found_path,
         None => {
-            let search_method: SearchMethod = app.search_method.parse().unwrap();
-            let found_path = match search_method {
-                SearchMethod::PSGetApp => get_powershell_getxapppackage(app.clone()),
-                SearchMethod::FolderSearch => get_folder_search(app.clone()),
-                SearchMethod::Shortcut => get_shortcut(app.clone()),
-            };
-
-            match found_path {
-                Ok(found_path) => {
-                    found_path
-                }
+            match update_found_path(app.clone()) {
+                Ok(found_path) => found_path,
                 Err(e) => {
                     eprintln!("Failed to find app '{}': {:?}", app.app_name, e);
                     String::new()
@@ -43,24 +34,40 @@ pub fn get_app_path(app: db::App) -> String {
     }
 }
 
-pub async fn update_app(app_name: &str) {
-    todo!("update_app");
+pub async fn update_app(app: db::App) {
+    match update_found_path(app.clone()) {
+        Ok(_) => {
+            println!("Successfully updated app found_path for '{}'", app.app_name);
+        }
+        Err(e) => {
+            eprintln!("Failed to find app '{}': {:?}", app.app_name, e);
+        }
+    }
 }
 
-pub async fn update_all_apps() {
+pub async fn update_all_apps(apps: Vec<db::App>) {
     todo!("update_all_apps");
-    /*
-              if Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt("Do you want to reset the database? All data will be deleted.")
-                .interact()
-                .unwrap()
-            {
-                db::reset_db();
-            } else {
-                println!("Reset not confirmed.");
-            }
 
+    /*
+    if Confirm::with_theme(&ColorfulTheme::default())
+    .with_prompt("Do you want to reset the database? All data will be deleted.")
+    .interact()
+    .unwrap()
+    {
+    db::reset_db();
+    } else {
+    println!("Reset not confirmed.");
+    }
      */
+}
+
+fn update_found_path(app: db::App) -> Result<String, Error> {
+    let search_method: SearchMethod = app.search_method.parse().unwrap();
+    match search_method {
+        SearchMethod::PSGetApp => get_powershell_getxapppackage(app),
+        SearchMethod::FolderSearch => get_folder_search(app),
+        SearchMethod::Shortcut => get_shortcut(app),
+    }
 }
 
 fn run_powershell_cmd(powershell_cmd: &str) -> Vec<String> {
@@ -185,7 +192,36 @@ fn get_shortcut(app: db::App) -> Result<String, Error> {
     }
 
     Err(Error::new(
-            ErrorKind::NotFound,
-            format!("Failed to find file '{}'", path.to_string_lossy()),
+        ErrorKind::NotFound,
+        format!("Failed to find file '{}'", path.to_string_lossy()),
     ))
+}
+
+pub fn testings_progress(app: db::App) {
+    // Create a new progress bar
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(ProgressStyle::default_spinner());
+
+    // Path to start the search
+    //let start_path = Path::new(&app.search_term);
+    let start_path = paths::get_base_search_folder(&app.search_term);
+    //let start_path = "C:\\Users\\paul\\AppData\\Local\\";
+    println!("base_search_folder: {}", &start_path);
+
+    for entry in WalkDir::new(start_path) {
+        let entry = entry.unwrap();
+
+        // Set the message to the currently-searched directory
+        pb.set_message(format!("Currently searching: {:?}", entry.path().display()));
+
+        if entry.file_name().to_string_lossy() == app.exe_name {
+            println!("Found rider.exe in {:?}", entry.path().display())
+            //pb.finish_with_message(format!("Found rider.exe in {:?}", entry.path().display()));
+            //return;
+        }
+
+        pb.inc(1); // Increase the spinner's step
+    }
+
+    pb.finish_with_message(format!("Finished searching,'{}' not found.", app.exe_name));
 }
