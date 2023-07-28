@@ -6,7 +6,7 @@ use std::{
 
 use powershell_script::PsScriptBuilder;
 
-use crate::{db, paths};
+use crate::{db, paths, constants, cli::SearchMethod};
 
 #[derive(Debug)]
 pub struct FileVersion {
@@ -15,6 +15,52 @@ pub struct FileVersion {
     pub minor: u32,
     pub build: u32,
     pub revision: u32,
+}
+
+pub fn get_app_path(app: db::App) -> String {
+    match app.found_path {
+        Some(found_path) => {
+            found_path
+        }
+        None => {
+            let search_method: SearchMethod = app.search_method.parse().unwrap();
+            let found_path = match search_method {
+                SearchMethod::PSGetApp => get_powershell_getxapppackage(app.clone()),
+                SearchMethod::FolderSearch => get_folder_search(app.clone()),
+                SearchMethod::Shortcut => get_shortcut(app.clone()),
+            };
+
+            match found_path {
+                Ok(found_path) => {
+                    found_path
+                }
+                Err(e) => {
+                    eprintln!("Failed to find app '{}': {:?}", app.app_name, e);
+                    String::new()
+                }
+            }
+        }
+    }
+}
+
+pub async fn update_app(app_name: &str) {
+    todo!("update_app");
+}
+
+pub async fn update_all_apps() {
+    todo!("update_all_apps");
+    /*
+              if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Do you want to reset the database? All data will be deleted.")
+                .interact()
+                .unwrap()
+            {
+                db::reset_db();
+            } else {
+                println!("Reset not confirmed.");
+            }
+
+     */
 }
 
 fn run_powershell_cmd(powershell_cmd: &str) -> Vec<String> {
@@ -46,7 +92,7 @@ fn get_property_from_stdout(stdout_strings: Vec<String>, property_name: &str) ->
     property_value.to_string()
 }
 
-pub fn get_powershell_getxapppackage(app: db::App) -> Result<String, Error> {
+fn get_powershell_getxapppackage(app: db::App) -> Result<String, Error> {
     let stdout_strings = run_powershell_cmd(&format!(
         r#"Get-AppXPackage -Name {} | Format-List InstallLocation"#,
         app.search_term
@@ -79,7 +125,7 @@ fn get_file_version(full_path: &str) -> FileVersion {
     }
 }
 
-pub fn get_folder_search(app: db::App) -> Result<String, Error> {
+fn get_folder_search(app: db::App) -> Result<String, Error> {
     println!("get_folder_search");
     let mut files: Vec<String> = Vec::new();
 
@@ -101,7 +147,7 @@ pub fn get_folder_search(app: db::App) -> Result<String, Error> {
         ));
     }
 
-    if env::consts::OS == "windows" {
+    if env::consts::OS == constants::OS_WINDOWS {
         // Get version details for all found files
         let mut file_versions: Vec<FileVersion> = Vec::new();
         for file in &files {
@@ -119,7 +165,7 @@ pub fn get_folder_search(app: db::App) -> Result<String, Error> {
         println!("Highest version: {:?}", &highest_version);
 
         return Ok(highest_version.app.clone());
-    } else if env::consts::OS == "macos" && files.len() == 1 {
+    } else if env::consts::OS == constants::OS_MAC && files.len() == 1 {
         // FIXME: This is a hack for now. Need file versio checking for Mac.
         println!("App found: {:?}", files[0].clone());
         return Ok(files[0].clone());
@@ -128,7 +174,7 @@ pub fn get_folder_search(app: db::App) -> Result<String, Error> {
     Err(Error::new(ErrorKind::Unsupported, "Unsupported OS"))
 }
 
-pub fn get_shortcut(app: db::App) -> Result<String, Error> {
+fn get_shortcut(app: db::App) -> Result<String, Error> {
     println!("get_shortcut_search");
 
     let mut path = PathBuf::from(&app.search_term);

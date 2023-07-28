@@ -1,6 +1,16 @@
 use clap::{Parser, Subcommand, ValueEnum};
+use colored::Colorize;
+use dialoguer::Confirm;
+use dialoguer::theme::ColorfulTheme;
 use strum_macros::EnumString;
 use strum_macros::Display;
+use tabled::settings::Modify;
+use tabled::settings::Width;
+use tabled::settings::object::Rows;
+
+use crate::db;
+use crate::finder;
+use crate::runner;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -39,6 +49,12 @@ pub enum Action {
         app_name: String,
     },
 
+    /// Update the running folder for selected apps. No app named means all in database.
+    Update {
+        /// App name to update.
+        app_name: Option<String>,
+    },
+
     /// Lists all apps in the database.
     List,
 
@@ -60,4 +76,67 @@ pub enum SearchMethod {
     /// Just runs the app directly. No lookups, you provide the full path.
     #[value(alias("Shortcut"))]
     Shortcut,
+}
+
+pub async fn run_cli_action(args: Args) -> i32 {
+    let mut exit_code = 0;
+
+    match args.action {
+        Action::Open { app_name } => match db::get_app(&app_name).await {
+            Ok(app) => {
+                runner::run_app(app).await;
+            }
+            Err(_) => {
+                log::error!("App '{}' not found", app_name);
+                exit_code = 1;
+            }
+        },
+        Action::Add {
+            app_name,
+            exe_name,
+            search_term,
+            search_method,
+        } => {
+            db::add_app(&app_name, &exe_name, &search_term, search_method).await;
+        }
+        Action::Delete { app_name } => {
+            db::delete_app(&app_name).await;
+        }
+        Action::Update { app_name } => {
+            match app_name {
+                Some(app_name) => {
+                    finder::update_app(&app_name).await;
+                }
+                None => {
+                    finder::update_all_apps().await;
+                }
+            }
+        }
+        Action::List {} => {
+            let apps = db::get_apps().await;
+            println!("{}", "App Listing".blue());
+            println!(
+                "{}",
+                tabled::Table::new(apps)
+                    .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
+            );
+        }
+        Action::Reset {} => {
+            // Prompt the user for confirmation to delete the file
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Do you want to reset the database? All data will be deleted.")
+                .interact()
+                .unwrap()
+            {
+                db::reset_db();
+            } else {
+                println!("Reset not confirmed.");
+            }
+        }
+        Action::Testings {} => {
+            println!("Testing!");
+        }
+    }
+
+    exit_code
 }
