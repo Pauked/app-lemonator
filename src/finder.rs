@@ -4,6 +4,7 @@ use std::{
     path::PathBuf,
 };
 
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use powershell_script::PsScriptBuilder;
 use walkdir::WalkDir;
@@ -22,15 +23,13 @@ pub struct FileVersion {
 pub fn get_app_path(app: db::App) -> String {
     match app.found_path {
         Some(found_path) => found_path,
-        None => {
-            match update_found_path(app.clone()) {
-                Ok(found_path) => found_path,
-                Err(e) => {
-                    eprintln!("Failed to find app '{}': {:?}", app.app_name, e);
-                    String::new()
-                }
+        None => match update_found_path(app.clone()) {
+            Ok(found_path) => found_path,
+            Err(e) => {
+                eprintln!("Failed to find app '{}': {:?}", app.app_name, e);
+                String::new()
             }
-        }
+        },
     }
 }
 
@@ -200,28 +199,66 @@ fn get_shortcut(app: db::App) -> Result<String, Error> {
 pub fn testings_progress(app: db::App) {
     // Create a new progress bar
     let pb = ProgressBar::new_spinner();
-    pb.set_style(ProgressStyle::default_spinner());
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.blue} [{elapsed_precise}] {msg}").unwrap(),
+    );
 
     // Path to start the search
-    //let start_path = Path::new(&app.search_term);
-    let start_path = paths::get_base_search_folder(&app.search_term);
-    //let start_path = "C:\\Users\\paul\\AppData\\Local\\";
+    let start_path = r#"C:\Users\paul\AppData\Local\"#;
     println!("base_search_folder: {}", &start_path);
 
+    let mut found_count = 0;
+
     for entry in WalkDir::new(start_path) {
-        let entry = entry.unwrap();
+        if let Ok(entry) = entry {
+            if entry.file_name().to_string_lossy() == app.exe_name {
+                found_count += 1;
+            }
 
-        // Set the message to the currently-searched directory
-        pb.set_message(format!("Currently searching: {:?}", entry.path().display()));
-
-        if entry.file_name().to_string_lossy() == app.exe_name {
-            println!("Found rider.exe in {:?}", entry.path().display())
-            //pb.finish_with_message(format!("Found rider.exe in {:?}", entry.path().display()));
-            //return;
+            // Set the message to the currently-searched directory
+            pb.set_message(format!(
+                "({}) Searching: {}",
+                get_matches_count(found_count),
+                truncate_middle(&entry.path().display().to_string(), 80)
+            ));
         }
 
         pb.inc(1); // Increase the spinner's step
     }
 
+    if found_count > 0 {
+        pb.finish_with_message(format!(
+            "Finished searching, found {}.",
+            get_matches_count(found_count)
+        ));
+        return;
+    }
     pb.finish_with_message(format!("Finished searching,'{}' not found.", app.exe_name));
+}
+
+fn get_matches_count(found_count: i32) -> String {
+    if found_count == 0 {
+        return "0 matches".to_string();
+    }
+    let result = format!("{} matches", found_count);
+    result.green().to_string()
+}
+
+fn truncate_middle(input: &str, size_limit: usize) -> String {
+    let input_len = input.len();
+
+    if input_len <= size_limit {
+        // No need to truncate, return the original string.
+        return input.to_string();
+    }
+
+    let middle_index = input_len / 2;
+    let half_size_limit = size_limit / 2;
+    let start_index = middle_index - half_size_limit;
+    let end_index = middle_index + half_size_limit;
+
+    // Remove the middle section from the string.
+    let mut output: String = input.to_string();
+    output.replace_range(start_index..end_index, "..");
+    output
 }
