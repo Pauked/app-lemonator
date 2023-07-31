@@ -114,22 +114,6 @@ pub async fn add_app(
     .bind(search_method.to_string())
     .execute(&db)
     .await
-    /*
-    match result {
-        Ok(_) => {
-            info!(
-                "Added App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'",
-                app_name.blue(),
-                exe_name,
-                search_term,
-                search_method
-            );
-        }
-        Err(error) => {
-            panic!("error: {}", error);
-        }
-    }
-    */
 }
 
 pub async fn get_app(app: &str) -> Result<App, sqlx::Error> {

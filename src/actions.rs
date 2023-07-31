@@ -22,10 +22,10 @@ pub async fn open_app(app_name: &str) {
             open_process(app.clone(), &app_path).await;
             match db::update_app_path(app.id, &app_path).await {
                 Ok(_) => {
-                    info!("Updated app for app_path '{}' to '{}'", app.app_name.blue(), app_path.green());
+                    debug!("Updated app for app_path '{}' to '{}'", app.app_name.blue(), app_path.green());
                 }
                 Err(error) => {
-                    panic!("Error updating app_path for '{}': {}", app.app_name.blue(), error);
+                    error!("Error updating app_path for '{}': {}", app.app_name.blue(), error);
                 }
             }
         }
@@ -52,7 +52,7 @@ pub async fn add_app(
             );
         }
         Err(error) => {
-            panic!("error: {}", error);
+            error!("Error adding app '{}': {}", app_name.blue(), error);
         }
     }
 }
@@ -63,7 +63,7 @@ pub async fn delete_app(app_name: &str) {
             info!("Deleted app '{}'", app_name.blue());
         }
         Err(error) => {
-            panic!("Error deleting app '{}': {}", app_name, error);
+            error!("Error deleting app '{}': {}", app_name, error);
         }
     }
 }
@@ -77,7 +77,7 @@ async fn update_app_path_for_list(apps: Vec<db::App>) {
                     info!("Updated app for app_path '{}' to '{}'", app.app_name.blue(), app_path.green());
                 }
                 Err(error) => {
-                    panic!("Error updating app_path for '{}': {}", app.app_name.blue(), error);
+                    error!("Error updating app_path for '{}': {}", app.app_name.blue(), error);
                 }
             }
         }
@@ -169,23 +169,23 @@ pub fn testings() {
     info!("Testing!");
 }
 
-async fn open_process(app: db::App, full_app_name: &str) {
+async fn open_process(app: db::App, app_path: &str) {
     #[cfg(target_os = "windows")]
-    let result = Command::new(full_app_name).spawn();
+    let result = Command::new(app_path).spawn();
     #[cfg(target_os = "macos")]
-    let result = Command::new("open").arg(full_app_name).spawn();
+    let result = Command::new("open").arg(app_path).spawn();
 
     match result {
-        Ok(_) => info!("Opened '{}'! - '{}'", &app.app_name, &full_app_name),
+        Ok(_) => info!("Opened '{}' in '{}'", &app.app_name.blue(), &app_path.green()),
         Err(e) => error!("Failed to open '{}': {:?}", &app.app_name, e),
     }
 
     match db::update_last_opened(app.id).await {
         Ok(_) => {
-            debug!("Updated last_opened datetime for app '{}'", app.app_name.blue());
+            debug!("Updated last_opened for app '{}'", app.app_name.blue());
         }
         Err(error) => {
-            panic!("Error updating last_opened datetime for app '{}': {}", app.app_name.blue(), error);
+            error!("Error updating last_opened for app '{}': {}", app.app_name.blue(), error);
         }
     }
 }
