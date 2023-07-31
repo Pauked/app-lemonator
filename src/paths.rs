@@ -1,30 +1,83 @@
-use std::{path::{Path, PathBuf}, env, fs};
+use std::{
+    env,
+    path::Path,
+};
 
+use colored::Colorize;
+use indicatif::{ProgressBar, ProgressStyle};
 use regex::Regex;
+use walkdir::WalkDir;
 
 const LOCALAPPDATA: &str = "localappdata";
 
 pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Vec<String>) {
     println!("find_file_in_folders: {}", root_folder);
 
-    if let Ok(entries) = fs::read_dir(root_folder) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let file_name = path.file_name().unwrap();
-            let folder = path.parent().unwrap();
+    // Create a new progress bar
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.blue} [{elapsed_precise}] {msg}").unwrap(),
+    );
 
-            if path.is_dir() {
-                if let Some(path_str) = path.to_str() {
-                    find_file_in_folders(path_str, find_file, results);
-                }
-            } else if path.is_file() && file_name.to_string_lossy().to_lowercase() == find_file.to_lowercase() {
-                let mut full_file = PathBuf::from(folder);
-                full_file.push(file_name);
-                results.push(full_file.display().to_string());
-                println!("Found file: {}", full_file.display());
+    let mut found_count = 0;
+
+    for entry in WalkDir::new(root_folder) {
+        if let Ok(entry) = entry {
+            // Check if the file name matches
+            if entry.file_name().to_string_lossy().to_lowercase() == find_file.to_lowercase() {
+                found_count += 1;
+                results.push(entry.path().display().to_string());
             }
+
+            // Set the message to the currently-searched directory
+            pb.set_message(format!(
+                "({}) Searching: {}",
+                get_matches_count(found_count),
+                truncate_middle(&entry.path().display().to_string(), 80)
+            ));
         }
+
+        pb.inc(1); // Increase the spinner's step
     }
+
+    //println!("FILE LISTING {:?}", results);
+
+    if found_count > 0 {
+        pb.finish_with_message(format!(
+            "Finished searching, found {}.",
+            get_matches_count(found_count)
+        ));
+        return;
+    }
+
+    pb.finish_with_message(format!("Finished searching,'{}' not found.", find_file));
+}
+
+fn get_matches_count(found_count: i32) -> String {
+    if found_count == 0 {
+        return "0 matches".to_string();
+    }
+    let result = format!("{} matches", found_count);
+    result.green().to_string()
+}
+
+fn truncate_middle(input: &str, size_limit: usize) -> String {
+    let input_len = input.len();
+
+    if input_len <= size_limit {
+        // No need to truncate, return the original string.
+        return input.to_string();
+    }
+
+    let middle_index = input_len / 2;
+    let half_size_limit = size_limit / 2;
+    let start_index = middle_index - half_size_limit;
+    let end_index = middle_index + half_size_limit;
+
+    // Remove the middle section from the string.
+    let mut output: String = input.to_string();
+    output.replace_range(start_index..end_index, "..");
+    output
 }
 
 pub fn folder_exists(folder_path: &str) -> bool {
@@ -67,7 +120,6 @@ pub fn get_local_app_data_folder() -> String {
 }
 
 pub fn get_base_search_folder(source_folder: &str) -> String {
-
     println!("Source folder: '{}'", source_folder);
     let mut output = source_folder.to_string();
 
@@ -87,7 +139,9 @@ pub fn get_base_search_folder(source_folder: &str) -> String {
             }
         }
         println!("Environment variable: '{}'", env_var_value);
-        output = re.replace_all(source_folder, env_var_value.as_str()).to_string();
+        output = re
+            .replace_all(source_folder, env_var_value.as_str())
+            .to_string();
 
         println!("Output: {}", output);
     }
@@ -101,7 +155,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[cfg(target_os = "windows")]
-    use crate::paths::{get_local_app_data_folder, get_base_search_folder};
+    use crate::paths::{get_base_search_folder, get_local_app_data_folder};
 
     #[cfg(target_os = "windows")]
     #[test]
@@ -119,4 +173,3 @@ mod tests {
         assert_eq!(actual, expected);
     }
 }
-

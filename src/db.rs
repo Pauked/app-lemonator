@@ -1,6 +1,6 @@
 use std::fs;
 
-use chrono::{NaiveDate, Utc, DateTime, Datelike, Timelike};
+use chrono::{Utc, DateTime, Datelike, Timelike, Local};
 use colored::Colorize;
 use sqlx::{
     migrate::{MigrateDatabase, Migrator},
@@ -19,18 +19,22 @@ static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations fr
 pub struct App {
     #[tabled(skip)]
     pub id: i32,
+    #[tabled(rename = "App Name")]
     pub app_name: String,
+    #[tabled(rename = "Exe Name")]
     pub exe_name: String,
+    #[tabled(rename = "Search Term")]
     pub search_term: String,
+    #[tabled(rename = "Search Method")]
     pub search_method: String,
-    #[tabled(display_with = "display_option_string")]
+    #[tabled(rename = "App Path", display_with = "display_option_string")]
     //#[tabled(skip)]
-    pub found_path: Option<String>,
-    #[tabled(display_with = "display_option_string")]
-    pub last_run: Option<String>,
-    #[tabled(display_with = "display_option_naivedate")]
+    pub app_path: Option<String>,
+    #[tabled(rename = "Last Opened", display_with = "display_option_utc_datetime_to_local")]
+    pub last_opened: Option<DateTime<Utc>>,
+    #[tabled(rename = "Last Updated", display_with = "display_option_utc_datetime_to_local")]
     //#[tabled(skip)]
-    pub last_update: Option<NaiveDate>,
+    pub last_updated: Option<DateTime<Utc>>,
 }
 
 fn display_option_string(o: &Option<String>) -> String {
@@ -40,11 +44,26 @@ fn display_option_string(o: &Option<String>) -> String {
     }
 }
 
-fn display_option_naivedate(o: &Option<NaiveDate>) -> String {
-    match o {
-        Some(s) => s.to_string(),
-        None => "N/A".to_string(),
+fn display_option_utc_datetime_to_local(o: &Option<DateTime<Utc>>) -> String {
+
+    if let Some(o) = o {
+        let converted: DateTime<Local> = DateTime::from(*o);
+        return format_local_datetime(&converted);
     }
+
+    "N/A".to_string()
+}
+
+fn format_local_datetime(local_datetime: &DateTime<Local>) -> String {
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        local_datetime.year(),
+        local_datetime.month(),
+        local_datetime.day(),
+        local_datetime.hour(),
+        local_datetime.minute(),
+        local_datetime.second()
+    )
 }
 
 pub async fn create_db() {
@@ -122,43 +141,42 @@ pub async fn get_app(app: &str) -> App {
     result.unwrap()
 }
 
-pub async fn update_app_found_path(app: &str, id: i32, found_path: &str) {
+pub async fn update_app_path(app: &str, id: i32, app_path: &str) {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
     let update_result =
-        sqlx::query("UPDATE apps SET found_path = $1, last_update = $2 WHERE id=$3 COLLATE NOCASE")
-            .bind(found_path)
-            //.bind(Utc::now().date_naive())
-            .bind(format_utc_datetime(Utc::now()))
+        sqlx::query("UPDATE apps SET app_path = $1, last_updated = $2 WHERE id=$3 COLLATE NOCASE")
+            .bind(app_path)
+            .bind(Utc::now())
             .bind(id)
             .execute(&db)
             .await;
 
     match update_result {
         Ok(_) => {
-            println!("Updated app for found_path '{}'", app.blue());
+            println!("Updated app for app_path '{}'", app.blue());
         }
         Err(error) => {
-            panic!("error: {}", error);
+            panic!("Error updating app_path: {}", error);
         }
     }
 }
 
-pub async fn update_last_run(app: &str, id: i32) {
+pub async fn update_last_opened(app: &str, id: i32) {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    let update_result = sqlx::query("UPDATE apps SET last_run = $1 WHERE id=$2 COLLATE NOCASE")
-        .bind(format_utc_datetime(Utc::now()))
+    let update_result = sqlx::query("UPDATE apps SET last_opened = $1 WHERE id=$2 COLLATE NOCASE")
+        .bind(Utc::now())
         .bind(id)
         .execute(&db)
         .await;
 
     match update_result {
         Ok(_) => {
-            println!("Updated app for last_run datetime '{}'", app.blue());
+            println!("Updated last_opened datetime '{}'", app.blue());
         }
         Err(error) => {
-            panic!("error: {}", error);
+            panic!("Error updating last_opened datetime: {}", error);
         }
     }
 }
@@ -176,7 +194,7 @@ pub async fn delete_app(app: &str) {
             println!("Deleted app '{}'", app.blue());
         }
         Err(error) => {
-            panic!("error: {}", error);
+            panic!("Error deleting app: {}", error);
         }
     }
 }
@@ -201,16 +219,4 @@ pub fn reset_db() {
         Ok(_) => println!("Database file deleted successfully."),
         Err(e) => log::error!("Error while deleting the database file: {}", e),
     }
-}
-
-fn format_utc_datetime(utc_datetime: DateTime<Utc>) -> String {
-    format!(
-        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
-        utc_datetime.year(),
-        utc_datetime.month(),
-        utc_datetime.day(),
-        utc_datetime.hour(),
-        utc_datetime.minute(),
-        utc_datetime.second()
-    )
 }

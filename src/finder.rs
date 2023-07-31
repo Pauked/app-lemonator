@@ -4,10 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use colored::Colorize;
-use indicatif::{ProgressBar, ProgressStyle};
 use powershell_script::PsScriptBuilder;
-use walkdir::WalkDir;
 
 use crate::{cli::SearchMethod, constants, db, paths};
 
@@ -20,47 +17,20 @@ pub struct FileVersion {
     pub revision: u32,
 }
 
-pub fn get_app_path(app: db::App) -> String {
-    match app.found_path {
-        Some(found_path) => found_path,
-        None => match update_found_path(app.clone()) {
-            Ok(found_path) => found_path,
+pub fn get_app_path(app: db::App, app_path: Option<String>) -> String {
+    match app_path {
+        Some(app_path) => app_path,
+        None => match search_for_app_path(app.clone()) {
+            Ok(app_path) => app_path,
             Err(e) => {
-                eprintln!("Failed to find app '{}': {:?}", app.app_name, e);
+                eprintln!("Failed to find app path '{}': {:?}", app.app_name, e);
                 String::new()
             }
         },
     }
 }
 
-pub async fn update_app(app: db::App) {
-    match update_found_path(app.clone()) {
-        Ok(_) => {
-            println!("Successfully updated app found_path for '{}'", app.app_name);
-        }
-        Err(e) => {
-            eprintln!("Failed to find app '{}': {:?}", app.app_name, e);
-        }
-    }
-}
-
-pub async fn update_all_apps(apps: Vec<db::App>) {
-    todo!("update_all_apps");
-
-    /*
-    if Confirm::with_theme(&ColorfulTheme::default())
-    .with_prompt("Do you want to reset the database? All data will be deleted.")
-    .interact()
-    .unwrap()
-    {
-    db::reset_db();
-    } else {
-    println!("Reset not confirmed.");
-    }
-     */
-}
-
-fn update_found_path(app: db::App) -> Result<String, Error> {
+fn search_for_app_path(app: db::App) -> Result<String, Error> {
     let search_method: SearchMethod = app.search_method.parse().unwrap();
     match search_method {
         SearchMethod::PSGetApp => get_powershell_getxapppackage(app),
@@ -194,71 +164,4 @@ fn get_shortcut(app: db::App) -> Result<String, Error> {
         ErrorKind::NotFound,
         format!("Failed to find file '{}'", path.to_string_lossy()),
     ))
-}
-
-pub fn testings_progress(app: db::App) {
-    // Create a new progress bar
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.blue} [{elapsed_precise}] {msg}").unwrap(),
-    );
-
-    // Path to start the search
-    let start_path = r#"C:\Users\paul\AppData\Local\"#;
-    println!("base_search_folder: {}", &start_path);
-
-    let mut found_count = 0;
-
-    for entry in WalkDir::new(start_path) {
-        if let Ok(entry) = entry {
-            if entry.file_name().to_string_lossy() == app.exe_name {
-                found_count += 1;
-            }
-
-            // Set the message to the currently-searched directory
-            pb.set_message(format!(
-                "({}) Searching: {}",
-                get_matches_count(found_count),
-                truncate_middle(&entry.path().display().to_string(), 80)
-            ));
-        }
-
-        pb.inc(1); // Increase the spinner's step
-    }
-
-    if found_count > 0 {
-        pb.finish_with_message(format!(
-            "Finished searching, found {}.",
-            get_matches_count(found_count)
-        ));
-        return;
-    }
-    pb.finish_with_message(format!("Finished searching,'{}' not found.", app.exe_name));
-}
-
-fn get_matches_count(found_count: i32) -> String {
-    if found_count == 0 {
-        return "0 matches".to_string();
-    }
-    let result = format!("{} matches", found_count);
-    result.green().to_string()
-}
-
-fn truncate_middle(input: &str, size_limit: usize) -> String {
-    let input_len = input.len();
-
-    if input_len <= size_limit {
-        // No need to truncate, return the original string.
-        return input.to_string();
-    }
-
-    let middle_index = input_len / 2;
-    let half_size_limit = size_limit / 2;
-    let start_index = middle_index - half_size_limit;
-    let end_index = middle_index + half_size_limit;
-
-    // Remove the middle section from the string.
-    let mut output: String = input.to_string();
-    output.replace_range(start_index..end_index, "..");
-    output
 }

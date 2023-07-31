@@ -25,3 +25,5 @@ sqlite.db-shm
 sqlite.db-wal
 
 log/my.log
+
+dev-init.bat

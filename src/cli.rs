@@ -1,16 +1,9 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use colored::Colorize;
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::Confirm;
+
 use strum_macros::Display;
 use strum_macros::EnumString;
-use tabled::settings::object::Rows;
-use tabled::settings::Modify;
-use tabled::settings::Width;
 
-use crate::db;
-use crate::finder;
-use crate::runner;
+use crate::actions;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -24,14 +17,14 @@ pub struct Args {
     pub action: Action,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, PartialEq)]
 pub enum Action {
     /// Opens an app.
-    #[clap(short_flag='o')]
+    #[clap(short_flag = 'o')]
     Open { app_name: String },
 
     /// Adds an app to the database.
-    #[clap(short_flag='a')]
+    #[clap(short_flag = 'a')]
     Add {
         /// Nice name for app.
         app_name: String,
@@ -45,29 +38,32 @@ pub enum Action {
     },
 
     /// Deletes the app from the database.
-    #[clap(short_flag='d')]
+    #[clap(short_flag = 'd')]
     Delete { app_name: String },
 
     /// Update the running folder for selected apps. No app named means all in database.
-    #[clap(short_flag='u')]
+    #[clap(short_flag = 'u')]
     Update {
         /// App name to update.
         app_name: Option<String>,
     },
 
     /// Lists all apps in the database.
-    #[clap(short_flag='l')]
-    List,
+    #[clap(short_flag = 'l')]
+    List {
+        /// Individual app name to list.
+        app_name: Option<String>,
+    },
 
     /// Resets the database.
-    #[clap(short_flag='r')]
+    #[clap(short_flag = 'r')]
     Reset,
 
     /// Testings, sssssh.
     Testings,
 }
 
-#[derive(ValueEnum, Clone, Debug, Display, EnumString)]
+#[derive(ValueEnum, Clone, Debug, Display, EnumString, PartialEq)]
 pub enum SearchMethod {
     /// Uses PowerShell to run the Get-AppXPackage cmdlet to retrieve InstallLocation.
     #[value(alias("PSGetApp"))]
@@ -80,65 +76,33 @@ pub enum SearchMethod {
     Shortcut,
 }
 
-pub async fn run_cli_action(args: Args) -> i32 {
-    //let mut exit_code = 0;
+pub async fn run_cli_action(args: Args) {
+    if args.action != Action::Reset {
+        actions::create_db().await;
+    }
 
     match args.action {
         Action::Open { app_name } => {
-            let app = db::get_app(&app_name).await;
-            println!("Running app '{}'", app.app_name);
-            runner::run_app(app).await;
-            // TODO: If app not found, error code?
-        },
+            actions::open_app(&app_name).await;
+        }
         Action::Add {
             app_name,
             exe_name,
             search_term,
             search_method,
         } => {
-            db::add_app(&app_name, &exe_name, &search_term, search_method).await;
+            actions::add_app(app_name, exe_name, search_term, search_method).await;
         }
         Action::Delete { app_name } => {
-            db::delete_app(&app_name).await;
+            actions::delete_app(&app_name).await;
         }
-        Action::Update { app_name } => match app_name {
-            Some(app_name) => {
-                let app = db::get_app(&app_name).await;
-                finder::update_app(app).await;
-            }
-            None => {
-                let apps = db::get_apps().await;
-                finder::update_all_apps(apps).await;
-            }
-        },
-        Action::List {} => {
-            let apps = db::get_apps().await;
-            println!("{}", "App Listing".blue());
-            println!(
-                "{}",
-                tabled::Table::new(apps)
-                    .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
-            );
+        Action::Update { app_name } => {
+            actions::update_app(app_name).await;
         }
-        Action::Reset {} => {
-            // Prompt the user for confirmation to delete the file
-            if Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt("Do you want to reset the database? All data will be deleted.")
-                .interact()
-                .unwrap()
-            {
-                db::reset_db();
-            } else {
-                println!("Reset not confirmed.");
-            }
+        Action::List { app_name } => {
+            actions::list_app(app_name).await;
         }
-        Action::Testings {} => {
-            println!("Testing!");
-            let app = db::get_app("rider").await;
-            finder::testings_progress(app);
-        }
+        Action::Reset {} => actions::reset(),
+        Action::Testings {} => actions::testings(),
     }
-
-    //exit_code
-    0
 }
