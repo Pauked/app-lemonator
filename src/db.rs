@@ -1,7 +1,7 @@
-use std::fs;
+use std::{fs, io};
 
-use chrono::{Utc, DateTime, Datelike, Timelike, Local};
-use colored::Colorize;
+use chrono::{DateTime, Datelike, Local, Timelike, Utc};
+use log::debug;
 use sqlx::{
     migrate::{MigrateDatabase, Migrator},
     FromRow, Sqlite, SqlitePool,
@@ -30,9 +30,15 @@ pub struct App {
     #[tabled(rename = "App Path", display_with = "display_option_string")]
     //#[tabled(skip)]
     pub app_path: Option<String>,
-    #[tabled(rename = "Last Opened", display_with = "display_option_utc_datetime_to_local")]
+    #[tabled(
+        rename = "Last Opened",
+        display_with = "display_option_utc_datetime_to_local"
+    )]
     pub last_opened: Option<DateTime<Utc>>,
-    #[tabled(rename = "Last Updated", display_with = "display_option_utc_datetime_to_local")]
+    #[tabled(
+        rename = "Last Updated",
+        display_with = "display_option_utc_datetime_to_local"
+    )]
     //#[tabled(skip)]
     pub last_updated: Option<DateTime<Utc>>,
 }
@@ -45,7 +51,6 @@ fn display_option_string(o: &Option<String>) -> String {
 }
 
 fn display_option_utc_datetime_to_local(o: &Option<DateTime<Utc>>) -> String {
-
     if let Some(o) = o {
         let converted: DateTime<Local> = DateTime::from(*o);
         return format_local_datetime(&converted);
@@ -68,39 +73,39 @@ fn format_local_datetime(local_datetime: &DateTime<Local>) -> String {
 
 pub async fn create_db() {
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
-        println!("Creating database {}", DB_URL);
+        debug!("Creating database {}", DB_URL);
         match Sqlite::create_database(DB_URL).await {
-            Ok(_) => println!("Create db success"),
+            Ok(_) => debug!("Create db success"),
             Err(error) => panic!("error: {}", error),
         }
     } else {
-        //println!("Database already exists");
+        debug!("Database already exists");
     }
 
     let db = SqlitePool::connect(DB_URL).await.unwrap();
     let migration_results = MIGRATOR.run(&db).await;
     match migration_results {
         Ok(_) => {
-            //println!("Migration success");
+            debug!("Migration success");
         }
         Err(error) => {
             panic!("error: {}", error);
         }
     }
-    //println!("migration: {:?}", migration_results);
+    debug!("migration: {:?}", migration_results);
 }
 
 pub async fn add_app(
     app_name: &str,
     exe_name: &str,
     search_term: &str,
-    search_method: SearchMethod,
-) {
+    search_method: &SearchMethod,
+) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
     // TODO: Check app doesn't exist already
 
-    let result = sqlx::query(
+    sqlx::query(
         "INSERT INTO apps (app_name, exe_name, search_term, search_method) VALUES (?,?,?,?)",
     )
     .bind(app_name)
@@ -108,13 +113,13 @@ pub async fn add_app(
     .bind(search_term)
     .bind(search_method.to_string())
     .execute(&db)
-    .await;
-
+    .await
+    /*
     match result {
         Ok(_) => {
-            println!(
-                "Added appname '{}', exename '{}', searchterm '{}', searchmethod '{}'",
-                app_name.green(),
+            info!(
+                "Added App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'",
+                app_name.blue(),
                 exe_name,
                 search_term,
                 search_method
@@ -124,99 +129,58 @@ pub async fn add_app(
             panic!("error: {}", error);
         }
     }
+    */
 }
 
-pub async fn get_app(app: &str) -> App {
+pub async fn get_app(app: &str) -> Result<App, sqlx::Error> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    let result = sqlx::query_as::<_, App>("SELECT * FROM apps WHERE app_name = ? COLLATE NOCASE")
+    sqlx::query_as::<_, App>("SELECT * FROM apps WHERE app_name = ? COLLATE NOCASE")
         .bind(app.to_lowercase())
         .fetch_one(&db)
-        .await;
-
-    if result.is_err() {
-        panic!("Error getting App '{}': {}", app, result.err().unwrap());
-    }
-
-    result.unwrap()
+        .await
 }
 
-pub async fn update_app_path(app: &str, id: i32, app_path: &str) {
+pub async fn get_apps() -> Result<Vec<App>, sqlx::Error> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
-
-    let update_result =
-        sqlx::query("UPDATE apps SET app_path = $1, last_updated = $2 WHERE id=$3 COLLATE NOCASE")
-            .bind(app_path)
-            .bind(Utc::now())
-            .bind(id)
-            .execute(&db)
-            .await;
-
-    match update_result {
-        Ok(_) => {
-            println!("Updated app for app_path '{}'", app.blue());
-        }
-        Err(error) => {
-            panic!("Error updating app_path: {}", error);
-        }
-    }
+    sqlx::query_as::<_, App>("SELECT * FROM apps")
+        .fetch_all(&db)
+        .await
 }
 
-pub async fn update_last_opened(app: &str, id: i32) {
+pub async fn update_app_path(
+    id: i32,
+    app_path: &str,
+) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    let update_result = sqlx::query("UPDATE apps SET last_opened = $1 WHERE id=$2 COLLATE NOCASE")
+    sqlx::query("UPDATE apps SET app_path = $1, last_updated = $2 WHERE id=$3 COLLATE NOCASE")
+        .bind(app_path)
         .bind(Utc::now())
         .bind(id)
         .execute(&db)
-        .await;
-
-    match update_result {
-        Ok(_) => {
-            println!("Updated last_opened datetime '{}'", app.blue());
-        }
-        Err(error) => {
-            panic!("Error updating last_opened datetime: {}", error);
-        }
-    }
+        .await
 }
 
-pub async fn delete_app(app: &str) {
+pub async fn update_last_opened(id: i32) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    let delete_result = sqlx::query("DELETE FROM apps WHERE app_name=$1 COLLATE NOCASE")
+    sqlx::query("UPDATE apps SET last_opened = $1 WHERE id=$2 COLLATE NOCASE")
+        .bind(Utc::now())
+        .bind(id)
+        .execute(&db)
+        .await
+}
+
+pub async fn delete_app(app: &str) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
+    let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+    sqlx::query("DELETE FROM apps WHERE app_name=$1 COLLATE NOCASE")
         .bind(app.to_lowercase())
         .execute(&db)
-        .await;
-
-    match delete_result {
-        Ok(_) => {
-            println!("Deleted app '{}'", app.blue());
-        }
-        Err(error) => {
-            panic!("Error deleting app: {}", error);
-        }
-    }
+        .await
 }
 
-pub async fn get_apps() -> Vec<App> {
-    let db = SqlitePool::connect(DB_URL).await.unwrap();
-
-    let result = sqlx::query_as::<_, App>("SELECT * FROM apps")
-        .fetch_all(&db)
-        .await;
-
-    if result.is_err() {
-        panic!("Error getting App listing: {}", result.err().unwrap());
-    }
-
-    result.unwrap()
-}
-
-pub fn reset_db() {
-    // Delete the database file.
-    match fs::remove_file(DB_FILE) {
-        Ok(_) => println!("Database file deleted successfully."),
-        Err(e) => log::error!("Error while deleting the database file: {}", e),
-    }
+pub fn reset_db() -> Result<(), io::Error> {
+    fs::remove_file(DB_FILE)
 }

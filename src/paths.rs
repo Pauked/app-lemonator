@@ -1,17 +1,18 @@
 use std::{
     env,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
+use log::{debug, error};
 use regex::Regex;
 use walkdir::WalkDir;
 
 const LOCALAPPDATA: &str = "localappdata";
 
 pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Vec<String>) {
-    println!("find_file_in_folders: {}", root_folder);
+    debug!("find_file_in_folders: '{}'", root_folder);
 
     // Create a new progress bar
     let pb = ProgressBar::new_spinner();
@@ -31,7 +32,7 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
 
             // Set the message to the currently-searched directory
             pb.set_message(format!(
-                "({}) Searching: {}",
+                "({}) Searching: '{}'",
                 get_matches_count(found_count),
                 truncate_middle(&entry.path().display().to_string(), 80)
             ));
@@ -40,7 +41,7 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
         pb.inc(1); // Increase the spinner's step
     }
 
-    //println!("FILE LISTING {:?}", results);
+    debug!("Match files found - {:?}", results);
 
     if found_count > 0 {
         pb.finish_with_message(format!(
@@ -97,13 +98,25 @@ pub fn check_app_exists(app_path: &str) -> bool {
     return file_exists(app_path);
 }
 
+pub fn get_full_path(base_path: &str, file_name: &str) -> String {
+    let mut file_path = PathBuf::new();
+    file_path.push(base_path);
+    file_path.push(file_name);
+    file_path.display().to_string()
+}
+
+pub fn get_temp_dir() -> String {
+    let temp_dir = env::temp_dir();
+    temp_dir.display().to_string()
+}
+
 fn get_environment_folder(name: &str) -> String {
     if let Ok(appdata) = env::var(name) {
         let appdata_path = std::path::Path::new(&appdata);
-        println!("{} folder: {}", name, appdata_path.display());
+        debug!("Environment '{}' returns folder: '{}'", name, appdata_path.display());
         return appdata_path.display().to_string();
     } else {
-        eprintln!("Failed to retrieve {} folder.", name);
+        error!("Failed to retrieve environment '{}' folder.", name);
     }
 
     String::from("")
@@ -120,7 +133,7 @@ pub fn get_local_app_data_folder() -> String {
 }
 
 pub fn get_base_search_folder(source_folder: &str) -> String {
-    println!("Source folder: '{}'", source_folder);
+    debug!("Source folder: '{}'", source_folder);
     let mut output = source_folder.to_string();
 
     // Look for special flags... at the start of the folder
@@ -135,15 +148,14 @@ pub fn get_base_search_folder(source_folder: &str) -> String {
                 env_var_value = get_local_app_data_folder();
             }
             _ => {
-                eprintln!("Unknown environment variable: '{}'", captured_value);
+                error!("Unknown environment variable: '{}'", captured_value);
             }
         }
-        println!("Environment variable: '{}'", env_var_value);
         output = re
             .replace_all(source_folder, env_var_value.as_str())
             .to_string();
 
-        println!("Output: {}", output);
+        debug!("Base search folder: '{}'", output);
     }
 
     output

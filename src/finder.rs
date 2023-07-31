@@ -4,6 +4,8 @@ use std::{
     path::PathBuf,
 };
 
+use colored::Colorize;
+use log::{error, debug};
 use powershell_script::PsScriptBuilder;
 
 use crate::{cli::SearchMethod, constants, db, paths};
@@ -23,7 +25,7 @@ pub fn get_app_path(app: db::App, app_path: Option<String>) -> String {
         None => match search_for_app_path(app.clone()) {
             Ok(app_path) => app_path,
             Err(e) => {
-                eprintln!("Failed to find app path '{}': {:?}", app.app_name, e);
+                error!("Failed to find app path '{}': {:?}", app.app_name.blue(), e);
                 String::new()
             }
         },
@@ -102,15 +104,15 @@ fn get_file_version(full_path: &str) -> FileVersion {
 }
 
 fn get_folder_search(app: db::App) -> Result<String, Error> {
-    println!("get_folder_search");
+    debug!("get_folder_search for app '{}'", app.app_name.blue());
     let mut files: Vec<String> = Vec::new();
 
     let base_search_folder = paths::get_base_search_folder(&app.search_term);
-    println!("base_search_folder: {}", &base_search_folder);
+
     if !paths::folder_exists(&base_search_folder) {
         return Err(Error::new(
             ErrorKind::InvalidData,
-            format!("Folder '{}' does not exist", &base_search_folder),
+            format!("Base Search Folder '{}' does not exist", &base_search_folder),
         ));
     }
 
@@ -124,12 +126,14 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
     }
 
     if env::consts::OS == constants::OS_WINDOWS {
+        debug!("Checking file versions for {} files", files.len());
+
         // Get version details for all found files
         let mut file_versions: Vec<FileVersion> = Vec::new();
         for file in &files {
-            println!("File: '{}'", file);
+            debug!("File: '{}'", file);
             let file_version = get_file_version(file);
-            println!("File version: {:?}", file_version);
+            debug!("File version: {:?}", file_version);
             file_versions.push(file_version);
         }
 
@@ -138,12 +142,12 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
             .iter()
             .max_by_key(|v| (v.major, v.minor, v.build, v.revision))
             .unwrap();
-        println!("Highest version: {:?}", &highest_version);
+        debug!("Highest version: {:?}", &highest_version);
 
         return Ok(highest_version.app.clone());
     } else if env::consts::OS == constants::OS_MAC && files.len() == 1 {
         // FIXME: This is a hack for now. Need file versio checking for Mac.
-        println!("App found: {:?}", files[0].clone());
+        debug!("App found: {:?}", files[0].clone());
         return Ok(files[0].clone());
     }
 
@@ -151,7 +155,7 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
 }
 
 fn get_shortcut(app: db::App) -> Result<String, Error> {
-    println!("get_shortcut_search");
+    debug!("get_shortcut_search");
 
     let mut path = PathBuf::from(&app.search_term);
     path.push(&app.exe_name);
