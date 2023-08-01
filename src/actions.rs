@@ -22,7 +22,7 @@ pub async fn open_app(app_name: &str) {
             open_process(app.clone(), &app_path).await;
             match db::update_app_path(app.id, &app_path).await {
                 Ok(_) => {
-                    debug!("Updated app for app_path '{}' to '{}'", app.app_name.blue(), app_path.green());
+                    debug!("Updated app for app_path '{}' to '{}'", app.app_name.blue(), app_path.magenta());
                 }
                 Err(error) => {
                     error!("Error updating app_path for '{}': {}", app.app_name.blue(), error);
@@ -46,8 +46,8 @@ pub async fn add_app(
             info!(
                 "Added App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'",
                 app_name.blue(),
-                exe_name,
-                search_term,
+                exe_name.magenta(),
+                search_term.magenta(),
                 search_method
             );
         }
@@ -74,7 +74,7 @@ async fn update_app_path_for_list(apps: Vec<db::App>) {
         if !app_path.is_empty() {
             match db::update_app_path(app.id, &app_path).await {
                 Ok(_) => {
-                    info!("Updated app for app_path '{}' to '{}'", app.app_name.blue(), app_path.green());
+                    info!("Updated app for app_path '{}' to '{}'", app.app_name.blue(), app_path.magenta());
                 }
                 Err(error) => {
                     error!("Error updating app_path for '{}': {}", app.app_name.blue(), error);
@@ -176,7 +176,7 @@ async fn open_process(app: db::App, app_path: &str) {
     let result = Command::new("open").arg(app_path).spawn();
 
     match result {
-        Ok(_) => info!("Opened '{}' in '{}'", &app.app_name.blue(), &app_path.green()),
+        Ok(_) => info!("Opened '{}' in '{}'", &app.app_name.blue(), &app_path.magenta()),
         Err(e) => error!("Failed to open '{}': {:?}", &app.app_name, e),
     }
 
