@@ -17,7 +17,9 @@ pub struct Args {
     pub action: Action,
 }
 
-#[derive(Subcommand, Debug, PartialEq)]
+// #[derive(Subcommand, Debug, PartialEq)]
+#[derive(Parser, Debug, PartialEq)]
+//#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum Action {
     /// Opens an app.
     #[clap(short_flag = 'o')]
@@ -35,6 +37,9 @@ pub enum Action {
         /// Search method to find app.
         #[clap(value_enum)]
         search_method: SearchMethod,
+        /// Parameters to pass to app.
+        #[clap()]
+        params: Option<String>,
     },
 
     /// Deletes the app from the database.
@@ -88,10 +93,11 @@ pub async fn run_cli_action(args: Args) {
         Action::Add {
             app_name,
             exe_name,
+            params,
             search_term,
             search_method,
         } => {
-            actions::add_app(app_name, exe_name, search_term, search_method).await;
+            actions::add_app(app_name, exe_name, params, search_term, search_method).await;
         }
         Action::Delete { app_name } => {
             actions::delete_app(&app_name).await;

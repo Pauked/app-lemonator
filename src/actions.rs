@@ -38,10 +38,11 @@ pub async fn open_app(app_name: &str) {
 pub async fn add_app(
     app_name: String,
     exe_name: String,
+    params: Option<String>,
     search_term: String,
     search_method: cli::SearchMethod,
 ) {
-    match db::add_app(&app_name, &exe_name, &search_term, &search_method).await {
+    match db::add_app(&app_name, &exe_name, params, &search_term, &search_method).await {
         Ok(_) => {
             info!(
                 "Added App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'",

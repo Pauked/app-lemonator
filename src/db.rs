@@ -23,6 +23,8 @@ pub struct App {
     pub app_name: String,
     #[tabled(rename = "Exe Name")]
     pub exe_name: String,
+    #[tabled(rename = "Params", display_with = "display_option_string")]
+    pub params: Option<String>,
     #[tabled(rename = "Search Term")]
     pub search_term: String,
     #[tabled(rename = "Search Method")]
@@ -98,6 +100,7 @@ pub async fn create_db() {
 pub async fn add_app(
     app_name: &str,
     exe_name: &str,
+    params: Option<String>,
     search_term: &str,
     search_method: &SearchMethod,
 ) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
@@ -106,10 +109,11 @@ pub async fn add_app(
     // TODO: Check app doesn't exist already
 
     sqlx::query(
-        "INSERT INTO apps (app_name, exe_name, search_term, search_method) VALUES (?,?,?,?)",
+        "INSERT INTO apps (app_name, exe_name, params, search_term, search_method) VALUES (?,?,?,?,?)",
     )
     .bind(app_name)
     .bind(exe_name)
+    .bind(params)
     .bind(search_term)
     .bind(search_method.to_string())
     .execute(&db)
