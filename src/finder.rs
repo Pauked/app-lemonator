@@ -107,16 +107,16 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
     debug!("get_folder_search for app '{}'", app.app_name.blue());
     let mut files: Vec<String> = Vec::new();
 
-    let base_search_folder = paths::get_base_search_folder(&app.search_term);
+    let base_folder = paths::get_base_folder(&app.search_term);
 
-    if !paths::folder_exists(&base_search_folder) {
+    if !paths::folder_exists(&base_folder) {
         return Err(Error::new(
             ErrorKind::InvalidData,
-            format!("Base Search Folder '{}' does not exist", &base_search_folder),
+            format!("Base Folder '{}' does not exist", &base_folder),
         ));
     }
 
-    paths::find_file_in_folders(&base_search_folder, &app.exe_name, &mut files);
+    paths::find_file_in_folders(&base_folder, &app.exe_name, &mut files);
 
     if files.is_empty() {
         return Err(Error::new(
@@ -145,7 +145,7 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
         debug!("Highest version: {:?}", &highest_version);
 
         return Ok(highest_version.app.clone());
-    } else if env::consts::OS == constants::OS_MAC && files.len() == 1 {
+    } else if env::consts::OS == constants::OS_MACOS && files.len() == 1 {
         // FIXME: This is a hack for now. Need file versio checking for Mac.
         debug!("App found: {:?}", files[0].clone());
         return Ok(files[0].clone());
@@ -157,7 +157,8 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
 fn get_shortcut(app: db::App) -> Result<String, Error> {
     debug!("get_shortcut_search");
 
-    let mut path = PathBuf::from(&app.search_term);
+    let base_folder = paths::get_base_folder(&app.search_term);
+    let mut path = PathBuf::from(base_folder);
     path.push(&app.exe_name);
 
     if paths::check_app_exists(&path.to_string_lossy()) {
