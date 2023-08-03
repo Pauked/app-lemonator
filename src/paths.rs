@@ -261,6 +261,36 @@ pub fn get_base_folder(source_folder: &str) -> String {
     output
 }
 
+pub fn parse_arguments(input: &str) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    let mut current_arg = String::new();
+    let mut inside_quotes = false;
+
+    for c in input.chars() {
+        match c {
+            ' ' if !inside_quotes => {
+                if !current_arg.is_empty() {
+                    args.push(current_arg.clone());
+                    current_arg.clear();
+                }
+            }
+            '"' => {
+                inside_quotes = !inside_quotes;
+                //current_arg.push(c);
+            }
+            _ => {
+                current_arg.push(c);
+            }
+        }
+    }
+
+    if !current_arg.is_empty() {
+        args.push(current_arg);
+    }
+
+    args
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(target_os = "windows")]
@@ -268,7 +298,7 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     use crate::paths::{get_base_folder, get_local_app_data_folder};
-    use crate::paths::{get_dropbox_folder_from_json, BUSINESSDROPBOX, PERSONALDROPBOX};
+    use crate::paths::{get_dropbox_folder_from_json, BUSINESSDROPBOX, PERSONALDROPBOX, parse_arguments};
 
     #[cfg(target_os = "windows")]
     #[test]
@@ -314,5 +344,37 @@ mod tests {
         // Assert
         assert_eq!(actual_personal, expected_personal);
         assert_eq!(actual_business, expected_business);
+    }
+
+    #[test]
+    fn parse_arguments_chrome_default_profile() {
+        // Arrange
+        let input = r#" --args --profile-directory="Default""#;
+        let expected = vec![
+            "--args".to_string(),
+            "--profile-directory=Default".to_string(),
+        ];
+
+        // Act
+        let actual = parse_arguments(input);
+
+        // Assert
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn parse_arguments_chrome_profile_1() {
+        // Arrange
+        let input = r#" --args --profile-directory="Profile 1""#;
+        let expected = vec![
+            "--args".to_string(),
+            "--profile-directory=Profile 1".to_string(),
+        ];
+
+        // Act
+        let actual = parse_arguments(input);
+
+        // Assert
+        assert_eq!(actual, expected);
     }
 }

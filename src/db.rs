@@ -100,7 +100,7 @@ pub async fn create_db() {
 pub async fn add_app(
     app_name: &str,
     exe_name: &str,
-    params: Option<String>,
+    params: &Option<String>,
     search_term: &str,
     search_method: &SearchMethod,
 ) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {

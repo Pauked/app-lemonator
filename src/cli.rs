@@ -1,11 +1,12 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, ValueEnum};
 
 use strum_macros::Display;
 use strum_macros::EnumString;
 
 use crate::actions;
 
-#[derive(Parser, Debug)]
+// https://github.com/clap-rs/clap/blob/master/examples/git-derive.rs
+#[derive(Parser, Debug, PartialEq)]
 #[command(
     name = "App Lemonator",
     version = "0.1.0",
@@ -13,7 +14,7 @@ use crate::actions;
     about = "Keeps the running of your apps lemony fresh!"
 )]
 pub struct Args {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub action: Action,
 }
 
@@ -38,8 +39,7 @@ pub enum Action {
         #[clap(value_enum)]
         search_method: SearchMethod,
         /// Parameters to pass to app.
-        #[clap()]
-        params: Option<String>,
+        params: Option<Vec<String>>,
     },
 
     /// Deletes the app from the database.
@@ -97,7 +97,14 @@ pub async fn run_cli_action(args: Args) {
             search_term,
             search_method,
         } => {
-            actions::add_app(app_name, exe_name, params, search_term, search_method).await;
+            actions::add_app(
+                app_name,
+                exe_name,
+                params.map(|p| p.join(" ")),
+                search_term,
+                search_method,
+            )
+            .await;
         }
         Action::Delete { app_name } => {
             actions::delete_app(&app_name).await;
