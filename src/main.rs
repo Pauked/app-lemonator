@@ -24,7 +24,20 @@ async fn main() {
 fn welcome_to_lemonator() -> String {
     let mut welcome = String::new();
     welcome.push_str("Welcome to ");
-    welcome.push_str("Lemonator".yellow().to_string().as_str());
+    welcome.push_str("App-Lemonator".yellow().to_string().as_str());
+    /*
+    welcome.push_str(r#"                         _                                  _             "#);
+    welcome.push_str(r#"                        | |                                | |            "#);
+    welcome.push_str(r#"  __ _ _ __  _ __ ______| | ___ _ __ ___   ___  _ __   __ _| |_ ___  _ __ "#);
+    welcome.push_str(r#" / _` | '_ \| '_ \______| |/ _ \ '_ ` _ \ / _ \| '_ \ / _` | __/ _ \| '__|"#);
+    welcome.push_str(r#"| (_| | |_) | |_) |     | |  __/ | | | | | (_) | | | | (_| | || (_) | |   "#);
+    welcome.push_str(r#" \__,_| .__/| .__/      |_|\___|_| |_| |_|\___/|_| |_|\__,_|\__\___/|_|   "#);
+    welcome.push_str(r#"      | |   | |                                                           "#);
+    welcome.push_str(r#"      |_|   |_|                                                           "#);
+    */
     welcome.push('!');
     welcome
 }
+
+
+

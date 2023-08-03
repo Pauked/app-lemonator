@@ -52,8 +52,8 @@ pub async fn add_app(
 ) {
     match db::add_app(&app_name, &exe_name, &params, &search_term, &search_method).await {
         Ok(_) => {
-            let param_info = if Some(params.clone()).is_some() {
-                format!(" Params '{}'", params.unwrap().magenta())
+            let param_info = if let Some(unwrapped_params) = params {
+                format!(" Params '{}'", unwrapped_params.magenta())
             } else {
                 String::new()
             };
@@ -200,8 +200,8 @@ async fn open_process(app: db::App, app_path: &str) {
     let mut cmd = Command::new(app_path);
 
     let mut flattened_params = String::new();
-    if Some(app.params.clone()).is_some() {
-        let args = paths::parse_arguments(&app.params.clone().unwrap());
+    if let Some(app_params) = app.params {
+        let args = paths::parse_arguments(&app_params);
         flattened_params = format!(" with params '{}'", args.join(" ").magenta());
 
         for arg in args {

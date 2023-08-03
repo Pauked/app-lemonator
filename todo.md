@@ -8,17 +8,8 @@ App principles / Defense of Design
 Todo list:
 TODO: Exit codes when app fails to run or find an app to run it. Check Stream Deck can pick that up! (https://crates.io/crates/proc-exit/1.0.1)
 TODO: Add method to update last run path periodically (or after each run?).
-TODO: Single app update.
-TODO: All apps update, with confirm prompt?
-TODO: Add Tokio tracing for logging or some other logging framework.
-TODO: Improve console output. Make consistent. Make tidy. Show app name!
-TODO: Stats/Usage table. What has been run and when.
-TODO: Add a reset option. Nukes the DB and recreates it.
-TODO: Add params field to apps table. Allows for passing of params to exe.
 TODO: Add an admin drive search option
-TODO: Handle WhatsApp and it's weird folder "C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2327.6.0_x64__cv1g1gvanyjgm\WhatsApp.exe"
 TODO: Add short and long args (i.e. --list -l)
 TODO: MacOS file version checking!
-TODO: Make PowerShell code Windows only.
-TODO: Add option to list an app with properties that can be copy pasted out easily. List method wraps folders. Tis a mess.
+TODO: Export to JSON
 
