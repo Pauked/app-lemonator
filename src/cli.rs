@@ -6,6 +6,7 @@ use strum_macros::EnumString;
 use crate::actions;
 
 // https://github.com/clap-rs/clap/blob/master/examples/git-derive.rs
+// https://github.com/glotlabs/gdrive/blob/main/src/main.rs
 #[derive(Parser, Debug, PartialEq)]
 #[command(
     name = "App Lemonator",
