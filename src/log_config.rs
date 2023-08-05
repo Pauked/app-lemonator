@@ -18,7 +18,7 @@ use crate::paths;
 
 const LOG_CONFIG: &str = "logging_config.yaml";
 
-pub fn init_log() {
+pub fn init_log(app_name: &str) {
     // Hardcoded config (below) can be overridden by a config file.
     if paths::file_exists(LOG_CONFIG) {
         let log_result = log4rs::init_file(LOG_CONFIG, Default::default());
@@ -47,14 +47,14 @@ pub fn init_log() {
     // Building a log file logger.
     // Want to have 5 MB log files, that can roll over 5 times (so 30 MB of logs).
     // Boy is log4rs complicated!
-    let file_path = paths::get_full_path(&paths::get_temp_dir(), "app-lemonator.log");
+    let file_path = paths::get_full_path(&paths::get_temp_dir(), &format!("{}.log", app_name));
 
     let logfile_pattern = "[ {d(%Y-%m-%d %H:%M:%S)(utc)} | {h({l}):5.5} ] {m}{n}";
 
     let trigger_size = 1024 * 1024 * 5; // 5MB log size before rolling over
     let trigger = Box::new(SizeTrigger::new(trigger_size));
     let roller_pattern =
-        paths::get_full_path(&paths::get_temp_dir(), "app-lemonator_history{}.log");
+        paths::get_full_path(&paths::get_temp_dir(), &format!("{}_history{{}}.log", app_name));
     let roller_count = 5;
     let roller_base = 1;
     let roller = Box::new(

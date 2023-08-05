@@ -15,3 +15,4 @@ TODO: Export to JSON
 FIXME: Error handling on ps-get-apps and folder-search not finding anything.
 TODO: Unit test Dropbox folder for empty folder sections for personal and business.
 TODO: Improve add so it checks for app existing before attempting add
+TODO: Add a simple list output option that can fit within a normal size Windows termnal window.

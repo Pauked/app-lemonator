@@ -10,9 +10,11 @@ mod finder;
 mod paths;
 mod log_config;
 
+const APP_NAME: &str = "app-lemonator";
+
 #[tokio::main]
 async fn main() {
-    log_config::init_log();
+    log_config::init_log(APP_NAME);
     info!("{}", welcome_to_lemonator());
 
     let args = cli::Args::parse();
