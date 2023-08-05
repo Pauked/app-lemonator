@@ -30,7 +30,6 @@ pub struct App {
     #[tabled(rename = "Search Method")]
     pub search_method: String,
     #[tabled(rename = "App Path", display_with = "display_option_string")]
-    //#[tabled(skip)]
     pub app_path: Option<String>,
     #[tabled(
         rename = "Last Opened",
@@ -41,20 +40,19 @@ pub struct App {
         rename = "Last Updated",
         display_with = "display_option_utc_datetime_to_local"
     )]
-    //#[tabled(skip)]
     pub last_updated: Option<DateTime<Utc>>,
 }
 
-fn display_option_string(o: &Option<String>) -> String {
-    match o {
+pub fn display_option_string(value: &Option<String>) -> String {
+    match value {
         Some(s) => s.to_string(),
         None => "N/A".to_string(),
     }
 }
 
-fn display_option_utc_datetime_to_local(o: &Option<DateTime<Utc>>) -> String {
-    if let Some(o) = o {
-        let converted: DateTime<Local> = DateTime::from(*o);
+pub fn display_option_utc_datetime_to_local(value: &Option<DateTime<Utc>>) -> String {
+    if let Some(d) = value {
+        let converted: DateTime<Local> = DateTime::from(*d);
         return format_local_datetime(&converted);
     }
 

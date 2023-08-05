@@ -5,7 +5,7 @@ use std::{
 };
 
 use colored::Colorize;
-use log::{error, debug};
+use log::{debug, error};
 use powershell_script::PsScriptBuilder;
 
 use crate::{cli::SearchMethod, constants, db, paths};
@@ -25,7 +25,7 @@ pub fn get_app_path(app: db::App, app_path: Option<String>) -> String {
         None => match search_for_app_path(app.clone()) {
             Ok(app_path) => app_path,
             Err(e) => {
-                error!("Failed to find app path '{}': {:?}", app.app_name.blue(), e);
+                error!("Failed to set app path for app '{}' using search method '{}' and search term '{}':\n{:#?}", app.app_name.blue(), app.search_method, app.search_term, e);
                 String::new()
             }
         },
@@ -41,7 +41,7 @@ fn search_for_app_path(app: db::App) -> Result<String, Error> {
     }
 }
 
-fn run_powershell_cmd(powershell_cmd: &str) -> Vec<String> {
+fn run_powershell_cmd(powershell_cmd: &str) -> Result<Vec<String>, Error>  {
     #[cfg(target_os = "macos")]
     // FIXME: Rework code so you CANNOT get here
     panic!("Powershell is not supported on Mac");
@@ -55,8 +55,18 @@ fn run_powershell_cmd(powershell_cmd: &str) -> Vec<String> {
 
     let output = ps.run(powershell_cmd).unwrap();
 
-    let stdout_text = &output.stdout().unwrap();
-    stdout_text.split("\r\n").map(|s| s.to_string()).collect()
+    let stdout_result = &output.stdout();
+    match stdout_result {
+        None => {
+            Err(Error::new(
+                ErrorKind::NotFound,
+                format!("No stdout from PowerShell, command was '{}'", powershell_cmd),
+            ))
+        }
+        Some(stdout_text) => {
+            Ok(stdout_text.split("\r\n").map(|s| s.to_string()).collect())
+        }
+    }
 }
 
 fn get_property_from_stdout(stdout_strings: Vec<String>, property_name: &str) -> String {
@@ -71,35 +81,49 @@ fn get_property_from_stdout(stdout_strings: Vec<String>, property_name: &str) ->
 }
 
 fn get_powershell_getxapppackage(app: db::App) -> Result<String, Error> {
-    let stdout_strings = run_powershell_cmd(&format!(
+    let stdout_result = run_powershell_cmd(&format!(
         r#"Get-AppXPackage -Name {} | Format-List InstallLocation"#,
         app.search_term
     ));
 
-    let app_path = get_property_from_stdout(stdout_strings, "InstallLocation : ");
-    let mut full_app_name = PathBuf::from(&app_path);
-    full_app_name.push(&app.exe_name);
+    match stdout_result {
+        Ok(stdout_strings) => {
+            let app_path = get_property_from_stdout(stdout_strings, "InstallLocation : ");
+            let mut full_app_name = PathBuf::from(&app_path);
+            full_app_name.push(&app.exe_name);
 
-    Ok(full_app_name.to_string_lossy().to_string())
+            Ok(full_app_name.to_string_lossy().to_string())
+        }
+        Err(e) => {
+            Err(e)
+        }
+    }
 }
 
-fn get_file_version(full_path: &str) -> FileVersion {
-    let stdout_strings = run_powershell_cmd(&format!(
+fn get_file_version(full_path: &str) -> Result<FileVersion, Error> {
+    let stdout_result = run_powershell_cmd(&format!(
         r#"(Get-Item "{}").VersionInfo.FileVersionRaw | Format-List -Property Major, Minor, Build, Revision"#,
         full_path
     ));
 
-    let major = get_property_from_stdout(stdout_strings.clone(), "Major    : ");
-    let minor = get_property_from_stdout(stdout_strings.clone(), "Minor    : ");
-    let build = get_property_from_stdout(stdout_strings.clone(), "Build    : ");
-    let revision = get_property_from_stdout(stdout_strings, "Revision : ");
+    match stdout_result {
+        Ok(stdout_strings) => {
+            let major = get_property_from_stdout(stdout_strings.clone(), "Major    : ");
+            let minor = get_property_from_stdout(stdout_strings.clone(), "Minor    : ");
+            let build = get_property_from_stdout(stdout_strings.clone(), "Build    : ");
+            let revision = get_property_from_stdout(stdout_strings, "Revision : ");
 
-    FileVersion {
-        app: full_path.to_string(),
-        major: major.parse::<u32>().unwrap_or(0),
-        minor: minor.parse::<u32>().unwrap_or(0),
-        build: build.parse::<u32>().unwrap_or(0),
-        revision: revision.parse::<u32>().unwrap_or(0),
+            Ok(FileVersion {
+                app: full_path.to_string(),
+                major: major.parse::<u32>().unwrap_or(0),
+                minor: minor.parse::<u32>().unwrap_or(0),
+                build: build.parse::<u32>().unwrap_or(0),
+                revision: revision.parse::<u32>().unwrap_or(0),
+            })
+        }
+        Err(e) => {
+            Err(e)
+        }
     }
 }
 
@@ -111,7 +135,7 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
 
     if !paths::folder_exists(&base_folder) {
         return Err(Error::new(
-            ErrorKind::InvalidData,
+            ErrorKind::NotFound,
             format!("Base Folder '{}' does not exist", &base_folder),
         ));
     }
@@ -120,8 +144,8 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
 
     if files.is_empty() {
         return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("Failed to find file '{}'", &app.exe_name),
+            ErrorKind::NotFound,
+            format!("No matches found for '{}'", &app.exe_name),
         ));
     }
 
@@ -132,9 +156,16 @@ fn get_folder_search(app: db::App) -> Result<String, Error> {
         let mut file_versions: Vec<FileVersion> = Vec::new();
         for file in &files {
             debug!("File: '{}'", file);
-            let file_version = get_file_version(file);
-            debug!("File version: {:?}", file_version);
-            file_versions.push(file_version);
+            let file_version_result = get_file_version(file);
+            match file_version_result {
+                Ok(file_version) => {
+                    debug!("File version: {:?}", file_version);
+                    file_versions.push(file_version);
+                }
+                Err(e) => {
+                    error!("Failed to get file version for '{}': {:?}", file, e);
+                }
+            }
         }
 
         // Now found the highest versioned file
@@ -167,6 +198,6 @@ fn get_shortcut(app: db::App) -> Result<String, Error> {
 
     Err(Error::new(
         ErrorKind::NotFound,
-        format!("Failed to find file '{}'", path.to_string_lossy()),
+        format!("File does not exist '{}'", path.to_string_lossy()),
     ))
 }

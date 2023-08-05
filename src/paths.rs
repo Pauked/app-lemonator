@@ -18,6 +18,19 @@ const LOCALAPPDATA: &str = "localappdata";
 const PERSONALDROPBOX: &str = "personaldropbox";
 const BUSINESSDROPBOX: &str = "businessdropbox";
 
+pub fn get_current_exe() -> String {
+    let exe_result = env::current_exe();
+    match exe_result {
+        Ok(exe) => {
+            return exe.display().to_string();
+        }
+        Err(e) => {
+            error!("Failed to get current exe: {:?}", e);
+        }
+    }
+    String::new()
+}
+
 pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Vec<String>) {
     debug!("find_file_in_folders: '{}'", root_folder);
 
@@ -52,13 +65,13 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
 
     if found_count > 0 {
         pb.finish_with_message(format!(
-            "Finished searching, found {}.",
+            "Finished searching, got {}.",
             get_matches_count(found_count)
         ));
         return;
     }
 
-    pb.finish_with_message(format!("Finished searching,'{}' not found.", find_file));
+    pb.finish_with_message(format!("Finished searching, no match found for '{}' in folder '{}'.", find_file, root_folder));
 }
 
 fn get_matches_count(found_count: i32) -> String {
@@ -298,7 +311,9 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     use crate::paths::{get_base_folder, get_local_app_data_folder};
-    use crate::paths::{get_dropbox_folder_from_json, BUSINESSDROPBOX, PERSONALDROPBOX, parse_arguments};
+    use crate::paths::{
+        get_dropbox_folder_from_json, parse_arguments, BUSINESSDROPBOX, PERSONALDROPBOX,
+    };
 
     #[cfg(target_os = "windows")]
     #[test]
@@ -317,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    fn check_dropbox_folders() {
+    fn check_dropbox_folders_both_set() {
         // Arrange
         let expected_personal = r#"C:\DropBox\Personal"#;
         let expected_business = r#"C:\DropBox\Business"#;
@@ -336,6 +351,70 @@ mod tests {
         "subscription_type": "Business"
     }
 }"#;
+
+        // Act
+        let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);
+        let actual_business = get_dropbox_folder_from_json(BUSINESSDROPBOX, "test", json_data);
+
+        // Assert
+        assert_eq!(actual_personal, expected_personal);
+        assert_eq!(actual_business, expected_business);
+    }
+
+    #[test]
+    fn check_dropbox_folders_personal_set() {
+        // Arrange
+        let expected_personal = r#"C:\DropBox\Personal"#;
+        let expected_business = r#""#;
+        let json_data = r#"
+{
+    "personal": {
+        "path": "C:\\DropBox\\Personal",
+        "host": 123456789,
+        "is_team": false,
+        "subscription_type": "Basic"
+    }
+}"#;
+
+        // Act
+        let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);
+        let actual_business = get_dropbox_folder_from_json(BUSINESSDROPBOX, "test", json_data);
+
+        // Assert
+        assert_eq!(actual_personal, expected_personal);
+        assert_eq!(actual_business, expected_business);
+    }
+
+    #[test]
+    fn check_dropbox_folders_business_set() {
+        // Arrange
+        let expected_personal = r#""#;
+        let expected_business = r#"C:\DropBox\Business"#;
+        let json_data = r#"
+{
+    "business": {
+        "path": "C:\\DropBox\\Business",
+        "host": 123456789,
+        "is_team": true,
+        "subscription_type": "Business"
+    }
+}"#;
+
+        // Act
+        let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);
+        let actual_business = get_dropbox_folder_from_json(BUSINESSDROPBOX, "test", json_data);
+
+        // Assert
+        assert_eq!(actual_personal, expected_personal);
+        assert_eq!(actual_business, expected_business);
+    }
+
+    #[test]
+    fn check_dropbox_folders_none_set() {
+        // Arrange
+        let expected_personal = r#""#;
+        let expected_business = r#""#;
+        let json_data = r#" { }"#;
 
         // Act
         let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);

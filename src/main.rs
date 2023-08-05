@@ -1,26 +1,35 @@
 use clap::Parser;
+use color_eyre::eyre::Result;
 use colored::Colorize;
-use log::info;
+use log::{debug, info};
 
 mod actions;
 mod cli;
 mod constants;
 mod db;
 mod finder;
-mod paths;
 mod log_config;
+mod paths;
 
 const APP_NAME: &str = "app-lemonator";
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
+    color_eyre::install()?;
     log_config::init_log(APP_NAME);
+    debug!(
+        "Starting '{}' from '{}'",
+        APP_NAME,
+        paths::get_current_exe()
+    );
     info!("{}", welcome_to_lemonator());
 
     let args = cli::Args::parse();
     log::debug!("Args {:?}", args);
 
     cli::run_cli_action(args).await;
+
+    Ok(())
 }
 
 fn welcome_to_lemonator() -> String {
@@ -40,6 +49,3 @@ fn welcome_to_lemonator() -> String {
     welcome.push('!');
     welcome
 }
-
-
-

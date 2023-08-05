@@ -53,8 +53,10 @@ pub fn init_log(app_name: &str) {
 
     let trigger_size = 1024 * 1024 * 5; // 5MB log size before rolling over
     let trigger = Box::new(SizeTrigger::new(trigger_size));
-    let roller_pattern =
-        paths::get_full_path(&paths::get_temp_dir(), &format!("{}_history{{}}.log", app_name));
+    let roller_pattern = paths::get_full_path(
+        &paths::get_temp_dir(),
+        &format!("{}_history{{}}.log", app_name),
+    );
     let roller_count = 5;
     let roller_base = 1;
     let roller = Box::new(

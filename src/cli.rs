@@ -40,6 +40,7 @@ pub enum Action {
         #[clap(value_enum)]
         search_method: SearchMethod,
         /// Parameters to pass to app.
+        #[arg(long)]
         params: Option<Vec<String>>,
     },
 
@@ -59,6 +60,10 @@ pub enum Action {
     List {
         /// Individual app name to list.
         app_name: Option<String>,
+
+        /// Show full details of apps.
+        #[arg(long, default_value = "false")]
+        full: bool,
     },
 
     /// Resets the database.
@@ -113,8 +118,8 @@ pub async fn run_cli_action(args: Args) {
         Action::Update { app_name } => {
             actions::update_app(app_name).await;
         }
-        Action::List { app_name } => {
-            actions::list_app(app_name).await;
+        Action::List { app_name, full } => {
+            actions::list_app(app_name, full).await;
         }
         Action::Reset {} => actions::reset(),
         Action::Testings {} => actions::testings(),
