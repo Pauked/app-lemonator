@@ -2,6 +2,7 @@ use std::{fs, io};
 
 use chrono::{DateTime, Datelike, Local, Timelike, Utc};
 use log::debug;
+use serde::{Deserialize, Serialize};
 use sqlx::{
     migrate::{MigrateDatabase, Migrator},
     FromRow, Sqlite, SqlitePool,
@@ -15,8 +16,9 @@ const DB_FILE: &str = "sqlite.db";
 
 static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations from the ./migrations directory
 
-#[derive(Clone, FromRow, Tabled, Debug)]
+#[derive(Clone, FromRow, Tabled, Debug, Serialize, Deserialize)]
 pub struct App {
+    #[serde(skip)]
     #[tabled(skip)]
     pub id: i32,
     #[tabled(rename = "App Name")]
@@ -31,11 +33,13 @@ pub struct App {
     pub search_method: String,
     #[tabled(rename = "App Path", display_with = "display_option_string")]
     pub app_path: Option<String>,
+    #[serde(skip)]
     #[tabled(
         rename = "Last Opened",
         display_with = "display_option_utc_datetime_to_local"
     )]
     pub last_opened: Option<DateTime<Utc>>,
+    #[serde(skip)]
     #[tabled(
         rename = "Last Updated",
         display_with = "display_option_utc_datetime_to_local"

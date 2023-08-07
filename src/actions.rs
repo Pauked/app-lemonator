@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{fs::File, io::Write, process::Command};
 
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Confirm};
@@ -58,7 +58,10 @@ pub async fn add_app(
     search_method: cli::SearchMethod,
 ) {
     if (db::get_app(&app_name).await).is_ok() {
-        error!("Cannot add app '{}' as it already exists. Full details are:", app_name.blue());
+        error!(
+            "Cannot add app '{}' as it already exists. Full details are:",
+            app_name.blue()
+        );
         list_app(Some(app_name), false).await;
         return;
     }
@@ -170,6 +173,11 @@ pub async fn list_app(app_name: Option<String>, full: bool) {
         },
         None => match db::get_apps().await {
             Ok(apps) => {
+                if apps.is_empty() {
+                    info!("No apps to list.");
+                    return;
+                }
+
                 let table = match full {
                     true => tabled::Table::new(apps)
                         .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
@@ -264,5 +272,114 @@ async fn open_process(app: db::App, app_path: &str) {
             }
         }
         Err(e) => error!("Failed to open '{}': {:?}", &app.app_name, e),
+    }
+}
+
+pub async fn export(file_out: Option<String>) {
+    match db::get_apps().await {
+        Ok(apps) => {
+            let file_checked: String = match file_out {
+                Some(file) => file,
+                None => String::new(),
+            };
+            let output_file = paths::get_export_file_name(
+                &file_checked,
+                dirs::document_dir().unwrap(),
+                &paths::get_unique_export_file_name(),
+            );
+
+            if paths::file_exists(&output_file)
+                && !Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt(format!(
+                        "Export file '{}' already exists, do you want to overwrite it?",
+                        output_file
+                    ))
+                    .interact()
+                    .unwrap()
+            {
+                info!("Export cancelled.");
+                return;
+            }
+
+            match serde_json::to_string(&apps) {
+                Ok(serialized) => match File::create(&output_file) {
+                    Ok(mut file) => match file.write_all(serialized.as_bytes()) {
+                        Ok(_) => {
+                            info!("Exported apps to '{}'", output_file);
+                        }
+                        Err(error) => {
+                            error!("Error writing to file to export: {}", error);
+                        }
+                    },
+                    Err(error) => {
+                        error!("Error creating file to export: {}", error);
+                    }
+                },
+                Err(error) => {
+                    error!("Error serializing apps to export: {}", error);
+                }
+            }
+        }
+        Err(error) => {
+            error!("Error getting apps to export: {}", error);
+        }
+    }
+}
+
+pub async fn import(file_in: String) {
+    match File::open(&file_in) {
+        Ok(file) => {
+            let deserialized: Vec<db::App> = match serde_json::from_reader(file) {
+                Ok(deserialized) => deserialized,
+                Err(error) => {
+                    error!(
+                        "Error deserializing file '{}' to import: {}",
+                        file_in, error
+                    );
+                    return;
+                }
+            };
+
+            let mut imported_count = 0;
+
+            for app in deserialized {
+                let search_method: cli::SearchMethod = app.search_method.parse().unwrap();
+
+                if (db::get_app(&app.app_name).await).is_ok() {
+                    info!("App '{}' already exists, skipping.", app.app_name.blue());
+                } else {
+                    match db::add_app(
+                        &app.app_name,
+                        &app.exe_name,
+                        &app.params,
+                        &app.search_term,
+                        &search_method,
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            info!("Imported app '{}'", app.app_name.blue());
+                            imported_count += 1;
+                        }
+                        Err(error) => {
+                            error!("Error importing app '{}': {}", app.app_name.blue(), error);
+                        }
+                    }
+                }
+            }
+
+            if imported_count == 0 {
+                info!("No apps imported from '{}'", file_in);
+                return;
+            }
+
+            info!(
+                "Successfully imported {} apps from '{}'",
+                imported_count, file_in
+            );
+        }
+        Err(error) => {
+            error!("Error opening file '{}' to import: {}", file_in, error);
+        }
     }
 }

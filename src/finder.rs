@@ -41,7 +41,7 @@ fn search_for_app_path(app: db::App) -> Result<String, Error> {
     }
 }
 
-fn run_powershell_cmd(powershell_cmd: &str) -> Result<Vec<String>, Error>  {
+fn run_powershell_cmd(powershell_cmd: &str) -> Result<Vec<String>, Error> {
     #[cfg(target_os = "macos")]
     // FIXME: Rework code so you CANNOT get here
     panic!("Powershell is not supported on Mac");
@@ -57,15 +57,14 @@ fn run_powershell_cmd(powershell_cmd: &str) -> Result<Vec<String>, Error>  {
 
     let stdout_result = &output.stdout();
     match stdout_result {
-        None => {
-            Err(Error::new(
-                ErrorKind::NotFound,
-                format!("No stdout from PowerShell, command was '{}'", powershell_cmd),
-            ))
-        }
-        Some(stdout_text) => {
-            Ok(stdout_text.split("\r\n").map(|s| s.to_string()).collect())
-        }
+        None => Err(Error::new(
+            ErrorKind::NotFound,
+            format!(
+                "No stdout from PowerShell, command was '{}'",
+                powershell_cmd
+            ),
+        )),
+        Some(stdout_text) => Ok(stdout_text.split("\r\n").map(|s| s.to_string()).collect()),
     }
 }
 
@@ -94,9 +93,7 @@ fn get_powershell_getxapppackage(app: db::App) -> Result<String, Error> {
 
             Ok(full_app_name.to_string_lossy().to_string())
         }
-        Err(e) => {
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -121,9 +118,7 @@ fn get_file_version(full_path: &str) -> Result<FileVersion, Error> {
                 revision: revision.parse::<u32>().unwrap_or(0),
             })
         }
-        Err(e) => {
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

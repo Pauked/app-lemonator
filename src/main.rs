@@ -11,15 +11,13 @@ mod finder;
 mod log_config;
 mod paths;
 
-const APP_NAME: &str = "app-lemonator";
-
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
-    log_config::init_log(APP_NAME);
+    log_config::init_log(constants::APP_NAME);
     debug!(
         "Starting '{}' from '{}'",
-        APP_NAME,
+        constants::APP_NAME,
         paths::get_current_exe()
     );
     info!("{}", welcome_to_lemonator());

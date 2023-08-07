@@ -72,6 +72,17 @@ pub enum Action {
 
     /// Testings, sssssh.
     Testings,
+
+    /// Exports the database to a JSON file.
+    Export {
+        /// File name to export to. Can be left blank, app will save to Documents folder.
+        file_out: Option<String>,
+    },
+
+    Import {
+        /// File name to import from.
+        file_in: String,
+    },
 }
 
 #[derive(ValueEnum, Clone, Debug, Display, EnumString, PartialEq)]
@@ -123,5 +134,7 @@ pub async fn run_cli_action(args: Args) {
         }
         Action::Reset {} => actions::reset(),
         Action::Testings {} => actions::testings(),
+        Action::Export { file_out: file } => actions::export(file).await,
+        Action::Import { file_in: file } => actions::import(file).await,
     }
 }

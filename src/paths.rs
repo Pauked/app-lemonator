@@ -3,12 +3,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use chrono::Local;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
+use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::constants;
@@ -71,7 +73,10 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
         return;
     }
 
-    pb.finish_with_message(format!("Finished searching, no match found for '{}' in folder '{}'.", find_file, root_folder));
+    pb.finish_with_message(format!(
+        "Finished searching, no match found for '{}' in folder '{}'.",
+        find_file, root_folder
+    ));
 }
 
 fn get_matches_count(found_count: i32) -> String {
@@ -123,6 +128,43 @@ pub fn get_full_path(base_path: &str, file_name: &str) -> String {
     file_path.push(base_path);
     file_path.push(file_name);
     file_path.display().to_string()
+}
+
+pub fn get_unique_export_file_name() -> String {
+    let today = Local::now();
+    format!(
+        "{}-{}-{}{}",
+        constants::APP_NAME,
+        today.format("%Y-%m-%d"),
+        Uuid::new_v4(),
+        ".json"
+    )
+}
+
+pub fn get_export_file_name(
+    file_in: &str,
+    default_folder: PathBuf,
+    default_file_name: &str,
+) -> String {
+    let path = Path::new(file_in);
+
+    let mut parent = path.parent().unwrap_or(&default_folder);
+    let mut file_name = path.file_name().unwrap_or(default_file_name.as_ref());
+    let extension = path.extension().unwrap_or_default();
+
+    if extension.is_empty() {
+        parent = path;
+        file_name = default_file_name.as_ref();
+    }
+
+    if !parent.exists() || !parent.is_dir() {
+        parent = &default_folder;
+    }
+
+    let mut final_path = PathBuf::new();
+    final_path.push(parent);
+    final_path.push(file_name);
+    final_path.display().to_string()
 }
 
 pub fn get_temp_dir() -> String {
@@ -312,7 +354,8 @@ mod tests {
     #[cfg(target_os = "windows")]
     use crate::paths::{get_base_folder, get_local_app_data_folder};
     use crate::paths::{
-        get_dropbox_folder_from_json, parse_arguments, BUSINESSDROPBOX, PERSONALDROPBOX,
+        get_dropbox_folder_from_json, get_export_file_name, parse_arguments, BUSINESSDROPBOX,
+        PERSONALDROPBOX,
     };
 
     #[cfg(target_os = "windows")]
@@ -452,6 +495,73 @@ mod tests {
 
         // Act
         let actual = parse_arguments(input);
+
+        // Assert
+        assert_eq!(actual, expected);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn get_export_file_name_full_path() {
+        // Arrange
+        use crate::paths::get_unique_export_file_name;
+        let source = r#"C:\Windows\test.json"#;
+        let default_path = dirs::document_dir().unwrap();
+        let default_file_name = get_unique_export_file_name();
+
+        // Act
+        let actual = get_export_file_name(source, default_path, &default_file_name);
+
+        // Assert
+        assert_eq!(actual, source);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn get_export_file_name_just_path() {
+        // Arrange
+        use crate::paths::{get_full_path, get_unique_export_file_name};
+        let source = r#"C:\Windows\"#;
+        let default_path = dirs::document_dir().unwrap();
+        let default_file_name = get_unique_export_file_name();
+        let expected = get_full_path(source, &default_file_name);
+
+        // Act
+        let actual = get_export_file_name(source, default_path, &default_file_name);
+
+        // Assert
+        assert_eq!(actual, expected);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn get_export_file_name_just_file_name() {
+        // Arrange
+        use crate::paths::{get_full_path, get_unique_export_file_name};
+        let source = r#"test.json"#;
+        let default_path = dirs::document_dir().unwrap();
+        let default_file_name = get_unique_export_file_name();
+        let expected = get_full_path(default_path.to_str().unwrap(), source);
+
+        // Act
+        let actual = get_export_file_name(source, default_path, &default_file_name);
+
+        // Assert
+        assert_eq!(actual, expected);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn get_export_file_name_empty() {
+        // Arrange
+        use crate::paths::{get_full_path, get_unique_export_file_name};
+        let source = String::new();
+        let default_path = dirs::document_dir().unwrap();
+        let default_file_name = get_unique_export_file_name();
+        let expected = get_full_path(default_path.to_str().unwrap(), &default_file_name);
+
+        // Act
+        let actual = get_export_file_name(&source, default_path, &default_file_name);
 
         // Assert
         assert_eq!(actual, expected);
