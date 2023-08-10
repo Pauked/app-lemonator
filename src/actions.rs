@@ -1,8 +1,9 @@
 use std::{fs::File, io::Write, process::Command};
 
+use color_eyre::{eyre, eyre::Context, Report, Result};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Confirm};
-use log::{debug, error, info};
+use log::{error, info};
 use tabled::{
     builder::Builder,
     settings::{object::Rows, Modify, Style, Width},
@@ -18,36 +19,38 @@ pub async fn create_db() {
     db::create_db().await;
 }
 
-pub async fn open_app(app_name: &str) {
-    match db::get_app(app_name).await {
-        Ok(app) => {
-            let app_path = finder::get_app_path(app.clone(), app.app_path.clone());
-            if app_path.is_empty() {
-                return;
-            }
+pub async fn open_app(app_name: &str) -> Result<String, Report> {
+    let app = db::get_app(app_name)
+        .await
+        .wrap_err(format!("Failed to find app '{}'", app_name.blue()))?;
+    let app_path = finder::get_app_path(app.clone(), app.app_path.clone())?;
+    if app_path.is_empty() {
+        return Err(eyre::eyre!("No app path found for '{}'", app_name));
+    }
 
-            open_process(app.clone(), &app_path).await;
-            match db::update_app_path(app.id, &app_path).await {
-                Ok(_) => {
-                    debug!(
-                        "Updated app for app_path '{}' to '{}'",
-                        app.app_name.blue(),
-                        app_path.magenta()
-                    );
-                }
-                Err(error) => {
-                    error!(
-                        "Error updating app_path for '{}': {}",
-                        app.app_name.blue(),
-                        error
-                    );
-                }
-            }
+    Ok(open_process(app.clone(), &app_path).await?)
+    // FIXME: update app path
+    //db::update_app_path(app.id, &app_path).await?;
+    //Ok(format!("Successfully opened '{}'", app_name.blue()))
+    /*
+    match db::update_app_path(app.id, &app_path).await {
+        Ok(_) => {
+            debug!(
+                "Updated app for app_path '{}' to '{}'",
+                app.app_name.blue(),
+                app_path.magenta()
+            );
         }
-        Err(e) => {
-            error!("Failed to find app '{}': {:?}", app_name.blue(), e);
+        Err(error) => {
+            error!(
+                "Error updating app_path for '{}': {}",
+                app.app_name.blue(),
+                error
+            );
         }
     }
+    error!("Failed to find app '{}': {:?}", app_name.blue(), e);
+    */
 }
 
 pub async fn add_app(
@@ -56,16 +59,41 @@ pub async fn add_app(
     params: Option<String>,
     search_term: String,
     search_method: cli::SearchMethod,
-) {
+) -> Result<String, Report> {
     if (db::get_app(&app_name).await).is_ok() {
+        Err(eyre::eyre!(
+            "Cannot add app '{}' as it already exists. Full details are:",
+            app_name.blue()
+        ))?;
         error!(
             "Cannot add app '{}' as it already exists. Full details are:",
             app_name.blue()
         );
-        list_app(Some(app_name), false).await;
-        return;
+        // FIXME: list_app
+        //list_app(Some(app_name), false).await;
+        //return;
     }
 
+    let add_result = db::add_app(&app_name, &exe_name, &params, &search_term, &search_method)
+        .await
+        .wrap_err(format!("Error adding app '{}'", app_name.blue()))?;
+
+    let param_info = if let Some(unwrapped_params) = params {
+        format!(" Params '{}'", unwrapped_params.magenta())
+    } else {
+        String::new()
+    };
+
+    Ok(format!(
+        "Added App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'{}",
+        app_name.blue(),
+        exe_name.magenta(),
+        search_term.magenta(),
+        search_method,
+        param_info
+    ))
+
+    /*
     match db::add_app(&app_name, &exe_name, &params, &search_term, &search_method).await {
         Ok(_) => {
             let param_info = if let Some(unwrapped_params) = params {
@@ -87,9 +115,12 @@ pub async fn add_app(
             error!("Error adding app '{}': {}", app_name.blue(), error);
         }
     }
+    */
 }
 
-pub async fn delete_app(app_name: &str) {
+pub async fn delete_app(app_name: &str) -> Result<String, Report> {
+    todo!("Delete not implemented yet.")
+    /*
     match db::delete_app(app_name).await {
         Ok(_) => {
             info!("Deleted app '{}'", app_name.blue());
@@ -98,9 +129,12 @@ pub async fn delete_app(app_name: &str) {
             error!("Error deleting app '{}': {}", app_name, error);
         }
     }
+    */
 }
 
 async fn update_app_path_for_list(apps: Vec<db::App>) {
+    todo!("Update not implemented yet.")
+    /*
     for app in apps {
         let app_path = finder::get_app_path(app.clone(), None);
         if !app_path.is_empty() {
@@ -122,9 +156,12 @@ async fn update_app_path_for_list(apps: Vec<db::App>) {
             }
         }
     }
+    */
 }
 
-pub async fn update_app(app_name: Option<String>) {
+pub async fn update_app(app_name: Option<String>) -> Result<String, Report> {
+    todo!("Update not implemented yet.")
+    /*
     match app_name {
         Some(app_name) => match db::get_app(&app_name).await {
             Ok(app) => {
@@ -156,9 +193,12 @@ pub async fn update_app(app_name: Option<String>) {
             }
         }
     }
+    */
 }
 
-pub async fn list_app(app_name: Option<String>, full: bool) {
+pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Report> {
+    todo!("List not implemented yet.")
+    /*
     match app_name {
         Some(app_name) => match db::get_app(&app_name).await {
             Ok(app) => {
@@ -209,9 +249,12 @@ pub async fn list_app(app_name: Option<String>, full: bool) {
             }
         },
     }
+    */
 }
 
-pub fn reset() {
+pub fn reset() -> Result<String, Report> {
+    todo!("Reset not implemented yet.")
+    /*
     // Prompt the user for confirmation to delete the file
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you want to reset the database? All data will be deleted.")
@@ -225,14 +268,15 @@ pub fn reset() {
     } else {
         info!("Reset not confirmed.");
     }
+    */
 }
 
-pub fn testings() {
+pub fn testings() -> Result<String, Report> {
     // Could be any code calls, my WIP section
-    info!("Testing!");
+    todo!("Testing!");
 }
 
-async fn open_process(app: db::App, app_path: &str) {
+async fn open_process(app: db::App, app_path: &str) -> Result<String, Report> {
     #[cfg(target_os = "macos")]
     let mut cmd = Command::new("open").arg(app_path);
     #[cfg(target_os = "windows")]
@@ -247,8 +291,19 @@ async fn open_process(app: db::App, app_path: &str) {
             cmd.arg(arg);
         }
     }
-    let result = cmd.spawn();
+    let result = cmd
+        .spawn()
+        .wrap_err(format!("Failed to open '{}'", &app.app_name))?;
 
+    // FIXME: db::update_last_opened(app.id).await
+    Ok(format!(
+        "Successfully opened '{}' in '{}'{}",
+        &app.app_name.blue(),
+        &app_path.magenta(),
+        flattened_params
+    ))
+
+    /*
     match result {
         Ok(_) => {
             info!(
@@ -272,10 +327,12 @@ async fn open_process(app: db::App, app_path: &str) {
             }
         }
         Err(e) => error!("Failed to open '{}': {:?}", &app.app_name, e),
-    }
+    }*/
 }
 
-pub async fn export(file_out: Option<String>) {
+pub async fn export(file_out: Option<String>) -> Result<String, Report> {
+    todo!("Export not implemented yet.")
+    /*
     match db::get_apps().await {
         Ok(apps) => {
             let file_checked: String = match file_out {
@@ -324,9 +381,12 @@ pub async fn export(file_out: Option<String>) {
             error!("Error getting apps to export: {}", error);
         }
     }
+    */
 }
 
-pub async fn import(file_in: String) {
+pub async fn import(file_in: String) -> Result<String, Report> {
+    todo!("Import not implemented yet.")
+    /*
     match File::open(&file_in) {
         Ok(file) => {
             let deserialized: Vec<db::App> = match serde_json::from_reader(file) {
@@ -382,4 +442,5 @@ pub async fn import(file_in: String) {
             error!("Error opening file '{}' to import: {}", file_in, error);
         }
     }
+    */
 }

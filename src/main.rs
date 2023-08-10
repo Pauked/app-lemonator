@@ -1,5 +1,6 @@
+use std::process;
+
 use clap::Parser;
-use color_eyre::eyre::Result;
 use colored::Colorize;
 use log::{debug, info};
 
@@ -12,7 +13,7 @@ mod log_config;
 mod paths;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn run() -> eyre::Result<String> {
     color_eyre::install()?;
     log_config::init_log(constants::APP_NAME);
     debug!(
@@ -25,9 +26,8 @@ async fn main() -> Result<()> {
     let args = cli::Args::parse();
     log::debug!("Args {:?}", args);
 
-    cli::run_cli_action(args).await;
-
-    Ok(())
+    let cli_result = cli::run_cli_action(args).await?;
+    Ok(cli_result)
 }
 
 fn welcome_to_lemonator() -> String {
@@ -46,4 +46,18 @@ fn welcome_to_lemonator() -> String {
     */
     welcome.push('!');
     welcome
+}
+
+// Code layout from: https://github.com/sharkdp/bat/blob/master/src/bin/bat/main.rs#L364
+fn main() {
+    match run() {
+        Err(error) => {
+            log::error!("Error: {:?}", error);
+            process::exit(1);
+        }
+        Ok(success) => {
+            log::info!("{}", success);
+            process::exit(0);
+        }
+    }
 }
