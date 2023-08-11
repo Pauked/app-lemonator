@@ -105,34 +105,24 @@ pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
     }
 
     match args.action {
-        Action::Open { app_name } => {
-            Ok(actions::open_app(&app_name).await?)
-        }
+        Action::Open { app_name } => Ok(actions::open_app(&app_name).await?),
         Action::Add {
             app_name,
             exe_name,
             params,
             search_term,
             search_method,
-        } => {
-            Ok(actions::add_app(
-                app_name,
-                exe_name,
-                params.map(|p| p.join(" ")),
-                search_term,
-                search_method,
-            )
-            .await?)
-        }
-        Action::Delete { app_name } => {
-            Ok(actions::delete_app(&app_name).await?)
-        }
-        Action::Update { app_name } => {
-            Ok(actions::update_app(app_name).await?)
-        }
-        Action::List { app_name, full } => {
-            Ok(actions::list_app(app_name, full).await?)
-        }
+        } => Ok(actions::add_app(
+            app_name,
+            exe_name,
+            params.map(|p| p.join(" ")),
+            search_term,
+            search_method,
+        )
+        .await?),
+        Action::Delete { app_name } => Ok(actions::delete_app(&app_name).await?),
+        Action::Update { app_name } => Ok(actions::update_app(app_name).await?),
+        Action::List { app_name, full } => Ok(actions::list_app(app_name, full).await?),
         Action::Reset {} => Ok(actions::reset()?),
         Action::Testings {} => Ok(actions::testings()?),
         Action::Export { file_out: file } => Ok(actions::export(file).await?),

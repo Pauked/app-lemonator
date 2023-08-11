@@ -3,7 +3,7 @@ use std::{fs::File, io::Write, process::Command};
 use color_eyre::{eyre, eyre::Context, Report, Result};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Confirm};
-use log::{error, info};
+use log::{debug, error, info};
 use tabled::{
     builder::Builder,
     settings::{object::Rows, Modify, Style, Width},
@@ -20,16 +20,33 @@ pub async fn create_db() {
 }
 
 pub async fn open_app(app_name: &str) -> Result<String, Report> {
-    let app = db::get_app(app_name)
-        .await
-        .wrap_err(format!("Failed to find app '{}'", app_name.blue()))?;
-    let app_path = finder::get_app_path(app.clone(), app.app_path.clone())?;
-    if app_path.is_empty() {
-        return Err(eyre::eyre!("No app path found for '{}'", app_name));
-    }
+    let app = db::get_app(app_name).await.wrap_err(format!(
+        "Failed to find app in database '{}'",
+        app_name.blue()
+    ))?;
+    let app_path = finder::get_app_path(app.clone(), app.app_path.clone()).await?;
+    open_process(app.clone(), &app_path).await
+    // let open_result = open_process(app.clone(), &app_path).await?;
 
-    Ok(open_process(app.clone(), &app_path).await?)
-    // FIXME: update app path
+    // FIXME: update app path (maybe move to get_app_path instead of open...)
+    // match db::update_app_path(app.id, &app_path).await {
+    //     Ok(_) => {
+    //         debug!(
+    //             "Updated app for app_path '{}' to '{}'",
+    //             app.app_name.blue(),
+    //             app_path.magenta()
+    //         );
+    //     }
+    //     Err(error) => {
+    //         error!(
+    //             "Error updating app_path for '{}': {}",
+    //             app.app_name.blue(),
+    //             error
+    //         );
+    //     }
+    // }
+
+    // Ok(open_result)
     //db::update_app_path(app.id, &app_path).await?;
     //Ok(format!("Successfully opened '{}'", app_name.blue()))
     /*
@@ -282,6 +299,15 @@ async fn open_process(app: db::App, app_path: &str) -> Result<String, Report> {
     #[cfg(target_os = "windows")]
     let mut cmd = Command::new(app_path);
 
+    // Double check we can see the app before running
+    if !paths::check_app_exists(app_path) {
+        return Err(eyre::eyre!(
+            "App path does not exist for app '{}' and path '{}",
+            app.app_name,
+            app_path
+        ));
+    }
+
     let mut flattened_params = String::new();
     if let Some(app_params) = app.params {
         let args = paths::parse_arguments(&app_params);
@@ -291,43 +317,29 @@ async fn open_process(app: db::App, app_path: &str) -> Result<String, Report> {
             cmd.arg(arg);
         }
     }
-    let result = cmd
-        .spawn()
+    cmd.spawn()
         .wrap_err(format!("Failed to open '{}'", &app.app_name))?;
 
     // FIXME: db::update_last_opened(app.id).await
+    match db::update_last_opened(app.id).await {
+        Ok(_) => {
+            debug!("Updated last_opened for app '{}'", app.app_name.blue());
+        }
+        Err(error) => {
+            error!(
+                "Error updating last_opened for app '{}': {}",
+                app.app_name.blue(),
+                error
+            );
+        }
+    }
+
     Ok(format!(
         "Successfully opened '{}' in '{}'{}",
         &app.app_name.blue(),
         &app_path.magenta(),
         flattened_params
     ))
-
-    /*
-    match result {
-        Ok(_) => {
-            info!(
-                "Opened '{}' in '{}'{}",
-                &app.app_name.blue(),
-                &app_path.magenta(),
-                flattened_params
-            );
-
-            match db::update_last_opened(app.id).await {
-                Ok(_) => {
-                    debug!("Updated last_opened for app '{}'", app.app_name.blue());
-                }
-                Err(error) => {
-                    error!(
-                        "Error updating last_opened for app '{}': {}",
-                        app.app_name.blue(),
-                        error
-                    );
-                }
-            }
-        }
-        Err(e) => error!("Failed to open '{}': {:?}", &app.app_name, e),
-    }*/
 }
 
 pub async fn export(file_out: Option<String>) -> Result<String, Report> {

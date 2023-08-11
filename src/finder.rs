@@ -5,7 +5,11 @@ use eyre::{eyre, Context, Report, Result};
 use log::{debug, error};
 use powershell_script::PsScriptBuilder;
 
-use crate::{cli::SearchMethod, constants, db, paths};
+use crate::{
+    cli::SearchMethod,
+    constants, db,
+    paths::{self, check_app_exists},
+};
 
 #[derive(Debug)]
 pub struct FileVersion {
@@ -16,15 +20,40 @@ pub struct FileVersion {
     pub revision: u32,
 }
 
-pub fn get_app_path(app: db::App, app_path: Option<String>) -> Result<String, Report> {
+pub async fn get_app_path(app: db::App, app_path: Option<String>) -> Result<String, Report> {
     match app_path {
         Some(app_path) => Ok(app_path),
-        None => Ok(search_for_app_path(app.clone()).wrap_err(format!(
-            "Failed to set app path for app '{}' using search method '{}' and search term '{}'",
-            app.app_name.blue(),
-            app.search_method,
-            app.search_term
-        ))?),
+        None => {
+            let app_path = search_for_app_path(app.clone())
+            .wrap_err(format!(
+                "Failed to set app path for app '{}' using search method '{}' and search term '{}'",
+                app.app_name.blue(),
+                app.search_method,
+                app.search_term
+            ))?;
+
+            if check_app_exists(&app_path) {
+                // FIXME Move update app path to here? Should Database code be in here?
+                match db::update_app_path(app.id, &app_path).await {
+                    Ok(_) => {
+                        debug!(
+                            "Updated app for app_path '{}' to '{}'",
+                            app.app_name.blue(),
+                            app_path.magenta()
+                        );
+                    }
+                    Err(error) => {
+                        error!(
+                            "Error updating app_path for '{}': {}",
+                            app.app_name.blue(),
+                            error
+                        );
+                    }
+                }
+            }
+
+            Ok(app_path.to_string())
+        }
     }
 }
 
@@ -88,6 +117,7 @@ fn get_powershell_getxapppackage(app: db::App) -> Result<String, Report> {
     Ok(full_app_name.to_string_lossy().to_string())
 }
 
+// FIXME: Refactor error handling in get_file_version
 fn get_file_version(full_path: &str) -> Result<FileVersion, Report> {
     let stdout_result = run_powershell_cmd(&format!(
         r#"(Get-Item "{}").VersionInfo.FileVersionRaw | Format-List -Property Major, Minor, Build, Revision"#,
@@ -183,11 +213,4 @@ fn get_shortcut(app: db::App) -> Result<String, Report> {
         "File does not exist '{}'",
         path.to_string_lossy()
     )))
-
-    /*
-    Err(Error::new(
-        ErrorKind::NotFound,
-        format!("File does not exist '{}'", path.to_string_lossy()),
-    ))
-    */
 }
