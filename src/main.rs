@@ -7,10 +7,12 @@ use log::{debug, info};
 mod actions;
 mod cli;
 mod constants;
+mod data;
 mod db;
 mod finder;
 mod log_config;
 mod paths;
+mod runner;
 
 #[tokio::main]
 async fn run() -> eyre::Result<String> {

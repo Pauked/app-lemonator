@@ -1,6 +1,5 @@
 use clap::{Parser, ValueEnum};
 
-use eyre::ErrReport;
 use strum_macros::Display;
 use strum_macros::EnumString;
 
@@ -11,7 +10,7 @@ use crate::actions;
 #[derive(Parser, Debug, PartialEq)]
 #[command(
     name = "App Lemonator",
-    version = "0.1.0",
+    version = "0.2.0",
     author = "Paul",
     about = "Keeps the running of your apps lemony fresh!"
 )]
@@ -101,7 +100,7 @@ pub enum SearchMethod {
 
 pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
     if args.action != Action::Reset {
-        actions::create_db().await;
+        actions::create_db().await?;
     }
 
     match args.action {

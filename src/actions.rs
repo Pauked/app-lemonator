@@ -1,22 +1,20 @@
-use std::{fs::File, io::Write, process::Command};
-
 use color_eyre::{eyre, eyre::Context, Report, Result};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Confirm};
-use log::{debug, error, info};
+use log::{debug, error};
 use tabled::{
     builder::Builder,
     settings::{object::Rows, Modify, Style, Width},
 };
 
 use crate::{
-    cli,
+    cli, data,
     db::{self},
-    finder, paths,
+    finder, paths, runner,
 };
 
-pub async fn create_db() {
-    db::create_db().await;
+pub async fn create_db() -> Result<bool, Report> {
+    db::create_db().await
 }
 
 pub async fn open_app(app_name: &str) -> Result<String, Report> {
@@ -25,49 +23,39 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
         app_name.blue()
     ))?;
     let app_path = finder::get_app_path(app.clone(), app.app_path.clone()).await?;
-    open_process(app.clone(), &app_path).await
-    // let open_result = open_process(app.clone(), &app_path).await?;
 
-    // FIXME: update app path (maybe move to get_app_path instead of open...)
-    // match db::update_app_path(app.id, &app_path).await {
-    //     Ok(_) => {
-    //         debug!(
-    //             "Updated app for app_path '{}' to '{}'",
-    //             app.app_name.blue(),
-    //             app_path.magenta()
-    //         );
-    //     }
-    //     Err(error) => {
-    //         error!(
-    //             "Error updating app_path for '{}': {}",
-    //             app.app_name.blue(),
-    //             error
-    //         );
-    //     }
-    // }
-
-    // Ok(open_result)
-    //db::update_app_path(app.id, &app_path).await?;
-    //Ok(format!("Successfully opened '{}'", app_name.blue()))
-    /*
-    match db::update_app_path(app.id, &app_path).await {
-        Ok(_) => {
-            debug!(
-                "Updated app for app_path '{}' to '{}'",
+    if paths::check_app_exists(&app_path) {
+        // FIXME Move update app path to here? Should Database code be in here?
+        db::update_app_path(app.id, &app_path)
+            .await
+            .wrap_err(format!(
+                "Error updating app_path for '{}'",
                 app.app_name.blue(),
-                app_path.magenta()
-            );
+            ))?;
+        debug!(
+            "Updated app for app_path '{}' to '{}'",
+            app.app_name.blue(),
+            app_path.magenta()
+        );
+    }
+
+    let open_result = runner::open_process(app.clone(), &app_path).await?;
+
+    // FIXME: db::update_last_opened(app.id).await
+    match db::update_last_opened(app.id).await {
+        Ok(_) => {
+            debug!("Updated last_opened for app '{}'", app.app_name.blue());
         }
         Err(error) => {
             error!(
-                "Error updating app_path for '{}': {}",
+                "Error updating last_opened for app '{}': {}",
                 app.app_name.blue(),
                 error
             );
         }
     }
-    error!("Failed to find app '{}': {:?}", app_name.blue(), e);
-    */
+
+    Ok(open_result)
 }
 
 pub async fn add_app(
@@ -91,9 +79,7 @@ pub async fn add_app(
         //return;
     }
 
-    let add_result = db::add_app(&app_name, &exe_name, &params, &search_term, &search_method)
-        .await
-        .wrap_err(format!("Error adding app '{}'", app_name.blue()))?;
+    db::add_app(&app_name, &exe_name, &params, &search_term, &search_method).await?;
 
     let param_info = if let Some(unwrapped_params) = params {
         format!(" Params '{}'", unwrapped_params.magenta())
@@ -149,7 +135,7 @@ pub async fn delete_app(app_name: &str) -> Result<String, Report> {
     */
 }
 
-async fn update_app_path_for_list(apps: Vec<db::App>) {
+async fn update_app_path_for_list(apps: Vec<data::App>) {
     todo!("Update not implemented yet.")
     /*
     for app in apps {
@@ -214,135 +200,78 @@ pub async fn update_app(app_name: Option<String>) -> Result<String, Report> {
 }
 
 pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Report> {
-    todo!("List not implemented yet.")
-    /*
     match app_name {
-        Some(app_name) => match db::get_app(&app_name).await {
+        Some(app_name) => {
+            let app = db::get_app(&app_name).await?;
+            Ok(format!(
+                "{}",
+                tabled::Table::new(vec![app]).with(Style::modern())
+            ))
+            /*
             Ok(app) => {
-                info!("{}", tabled::Table::new(vec![app]).with(Style::modern()));
+                Ok(format!("{}", tabled::Table::new(vec![app]).with(Style::modern())))
             }
             Err(e) => {
-                error!(
+                Err(eyre::eyre!(
                     "Failed to find app '{}', unable to do list: {:?}",
                     app_name, e
-                );
+                ))
             }
-        },
-        None => match db::get_apps().await {
-            Ok(apps) => {
-                if apps.is_empty() {
-                    info!("No apps to list.");
-                    return;
-                }
+            */
+        }
+        None => {
+            let apps = db::get_apps().await?;
 
-                let table = match full {
-                    true => tabled::Table::new(apps)
-                        .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
-                        .with(Style::modern())
-                        .to_string(),
-                    _ => {
-                        let mut builder = Builder::default();
-                        builder.set_header(["App Name", "App Path", "Last Opened", "Last Updated"]);
-                        for app in apps {
-                            builder.push_record([
-                                app.app_name,
-                                db::display_option_string(&app.app_path),
-                                db::display_option_utc_datetime_to_local(&app.last_opened),
-                                db::display_option_utc_datetime_to_local(&app.last_updated),
-                            ]);
-                        }
-                        let mut table = builder.build();
-                        table
-                            .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words()))
-                            .with(Style::modern())
-                            .to_string()
+            if apps.is_empty() {
+                return Ok("No apps to list.".to_string());
+            }
+
+            let table = match full {
+                true => tabled::Table::new(apps)
+                    .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
+                    .with(Style::modern())
+                    .to_string(),
+                _ => {
+                    let mut builder = Builder::default();
+                    builder.set_header(["App Name", "App Path", "Last Opened", "Last Updated"]);
+                    for app in apps {
+                        builder.push_record([
+                            app.app_name,
+                            data::display_option_string(&app.app_path),
+                            data::display_option_utc_datetime_to_local(&app.last_opened),
+                            data::display_option_utc_datetime_to_local(&app.last_updated),
+                        ]);
                     }
-                };
+                    let mut table = builder.build();
+                    table
+                        .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words()))
+                        .with(Style::modern())
+                        .to_string()
+                }
+            };
 
-                info!("{}\n{}", "App Listing".yellow(), table);
-            }
-            Err(e) => {
-                error!("Failed to get apps, unable to do list: {:?}", e);
-            }
-        },
+            Ok(format!("{}\n{}", "App Listing".yellow(), table))
+        }
     }
-    */
 }
 
 pub fn reset() -> Result<String, Report> {
-    todo!("Reset not implemented yet.")
-    /*
     // Prompt the user for confirmation to delete the file
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you want to reset the database? All data will be deleted.")
         .interact()
         .unwrap()
     {
-        match db::reset_db() {
-            Ok(_) => info!("Database reset."),
-            Err(e) => error!("Failed to reset database: {:?}", e),
-        }
+        db::reset_db().wrap_err("Failed to reset database.")?;
+        Ok("Database reset.".to_string())
     } else {
-        info!("Reset not confirmed.");
+        Ok("Database reset not confirmed.".to_string())
     }
-    */
 }
 
 pub fn testings() -> Result<String, Report> {
     // Could be any code calls, my WIP section
     todo!("Testing!");
-}
-
-async fn open_process(app: db::App, app_path: &str) -> Result<String, Report> {
-    #[cfg(target_os = "macos")]
-    let mut cmd = Command::new("open");
-    #[cfg(target_os = "macos")]
-    cmd.arg(app_path);
-
-    #[cfg(target_os = "windows")]
-    let mut cmd = Command::new(app_path);
-
-    // Double check we can see the app before running
-    if !paths::check_app_exists(app_path) {
-        return Err(eyre::eyre!(
-            "App path does not exist for app '{}' and path '{}",
-            app.app_name,
-            app_path
-        ));
-    }
-
-    let mut flattened_params = String::new();
-    if let Some(app_params) = app.params {
-        let args = paths::parse_arguments(&app_params);
-        flattened_params = format!(" with params '{}'", args.join(" ").magenta());
-
-        for arg in args {
-            cmd.arg(arg);
-        }
-    }
-    cmd.spawn()
-        .wrap_err(format!("Failed to open '{}'", &app.app_name))?;
-
-    // FIXME: db::update_last_opened(app.id).await
-    match db::update_last_opened(app.id).await {
-        Ok(_) => {
-            debug!("Updated last_opened for app '{}'", app.app_name.blue());
-        }
-        Err(error) => {
-            error!(
-                "Error updating last_opened for app '{}': {}",
-                app.app_name.blue(),
-                error
-            );
-        }
-    }
-
-    Ok(format!(
-        "Successfully opened '{}' in '{}'{}",
-        &app.app_name.blue(),
-        &app_path.magenta(),
-        flattened_params
-    ))
 }
 
 pub async fn export(file_out: Option<String>) -> Result<String, Report> {

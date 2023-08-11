@@ -7,8 +7,8 @@ use powershell_script::PsScriptBuilder;
 
 use crate::{
     cli::SearchMethod,
-    constants, db,
-    paths::{self, check_app_exists},
+    constants, data,
+    paths::{self},
 };
 
 #[derive(Debug)]
@@ -20,44 +20,19 @@ pub struct FileVersion {
     pub revision: u32,
 }
 
-pub async fn get_app_path(app: db::App, app_path: Option<String>) -> Result<String, Report> {
+pub async fn get_app_path(app: data::App, app_path: Option<String>) -> Result<String, Report> {
     match app_path {
         Some(app_path) => Ok(app_path),
-        None => {
-            let app_path = search_for_app_path(app.clone())
-            .wrap_err(format!(
-                "Failed to set app path for app '{}' using search method '{}' and search term '{}'",
-                app.app_name.blue(),
-                app.search_method,
-                app.search_term
-            ))?;
-
-            if check_app_exists(&app_path) {
-                // FIXME Move update app path to here? Should Database code be in here?
-                match db::update_app_path(app.id, &app_path).await {
-                    Ok(_) => {
-                        debug!(
-                            "Updated app for app_path '{}' to '{}'",
-                            app.app_name.blue(),
-                            app_path.magenta()
-                        );
-                    }
-                    Err(error) => {
-                        error!(
-                            "Error updating app_path for '{}': {}",
-                            app.app_name.blue(),
-                            error
-                        );
-                    }
-                }
-            }
-
-            Ok(app_path.to_string())
-        }
+        None => Ok(search_for_app_path(app.clone()).wrap_err(format!(
+            "Failed to set app path for app '{}' using search method '{}' and search term '{}'",
+            app.app_name.blue(),
+            app.search_method,
+            app.search_term
+        ))?),
     }
 }
 
-fn search_for_app_path(app: db::App) -> Result<String, Report> {
+fn search_for_app_path(app: data::App) -> Result<String, Report> {
     let search_method: SearchMethod = app.search_method.parse().unwrap();
     match search_method {
         SearchMethod::PSGetApp => Ok(get_powershell_getxapppackage(app)?),
@@ -67,9 +42,10 @@ fn search_for_app_path(app: db::App) -> Result<String, Report> {
 }
 
 fn run_powershell_cmd(powershell_cmd: &str) -> Result<Vec<String>, Report> {
-    #[cfg(target_os = "macos")]
     // FIXME: Rework code so you CANNOT get here
-    panic!("Powershell is not supported on Mac");
+    if env::consts::OS == constants::OS_MACOS {
+        return Err(eyre!("PowerShell is not supported on Mac"));
+    }
 
     let ps = PsScriptBuilder::new()
         .no_profile(true)
@@ -104,7 +80,7 @@ fn get_property_from_stdout(stdout_strings: Vec<String>, property_name: &str) ->
     property_value.to_string()
 }
 
-fn get_powershell_getxapppackage(app: db::App) -> Result<String, Report> {
+fn get_powershell_getxapppackage(app: data::App) -> Result<String, Report> {
     let stdout_strings = run_powershell_cmd(&format!(
         r#"Get-AppXPackage -Name {} | Format-List InstallLocation"#,
         app.search_term
@@ -143,7 +119,7 @@ fn get_file_version(full_path: &str) -> Result<FileVersion, Report> {
     }
 }
 
-fn get_folder_search(app: db::App) -> Result<String, Report> {
+fn get_folder_search(app: data::App) -> Result<String, Report> {
     debug!("get_folder_search for app '{}'", app.app_name.blue());
     let mut files: Vec<String> = Vec::new();
 
@@ -198,7 +174,7 @@ fn get_folder_search(app: db::App) -> Result<String, Report> {
     Err(eyre!("Unsupported OS for folder search"))
 }
 
-fn get_shortcut(app: db::App) -> Result<String, Report> {
+fn get_shortcut(app: data::App) -> Result<String, Report> {
     debug!("get_shortcut_search");
 
     let base_folder = paths::get_base_folder(&app.search_term);
