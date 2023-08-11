@@ -295,7 +295,10 @@ pub fn testings() -> Result<String, Report> {
 
 async fn open_process(app: db::App, app_path: &str) -> Result<String, Report> {
     #[cfg(target_os = "macos")]
-    let mut cmd = Command::new("open").arg(app_path);
+    let mut cmd = Command::new("open");
+    #[cfg(target_os = "macos")]
+    cmd.arg(app_path);
+
     #[cfg(target_os = "windows")]
     let mut cmd = Command::new(app_path);
 
