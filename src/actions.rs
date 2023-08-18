@@ -18,11 +18,12 @@ pub async fn create_db() -> Result<bool, Report> {
 }
 
 pub async fn open_app(app_name: &str) -> Result<String, Report> {
-    let app = db::get_app(app_name).await.wrap_err(format!(
-        "Failed to find app in database '{}'",
-        app_name.blue()
-    ))?;
-    let app_path = finder::get_app_path(app.clone(), app.app_path.clone()).await?;
+    let app = db::get_app(app_name)
+        .await
+        .wrap_err("Unable to open app".to_string())?;
+    let app_path = finder::get_app_path(app.clone(), app.app_path.clone())
+        .await
+        .wrap_err("Unable to open app".to_string())?;
 
     if paths::check_app_exists(&app_path) {
         // FIXME Move update app path to here? Should Database code be in here?
@@ -39,7 +40,9 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
         );
     }
 
-    let open_result = runner::open_process(app.clone(), &app_path).await?;
+    let open_result = runner::open_process(app.clone(), &app_path)
+        .await
+        .wrap_err("Unable to open app".to_string())?;
 
     // FIXME: db::update_last_opened(app.id).await
     match db::update_last_opened(app.id).await {
@@ -65,18 +68,17 @@ pub async fn add_app(
     search_term: String,
     search_method: cli::SearchMethod,
 ) -> Result<String, Report> {
+    // If the app already exists, this is "OK". Report back the details of what is stored.
     if (db::get_app(&app_name).await).is_ok() {
-        Err(eyre::eyre!(
-            "Cannot add app '{}' as it already exists. Full details are:",
-            app_name.blue()
-        ))?;
-        error!(
-            "Cannot add app '{}' as it already exists. Full details are:",
-            app_name.blue()
-        );
-        // FIXME: list_app
-        //list_app(Some(app_name), false).await;
-        //return;
+        let listing = match list_app(Some(app_name.clone()), false).await {
+            Ok(output) => output,
+            Err(_) => "Unable to get listing".to_string()
+        };
+
+        return Ok(format!(
+            "Cannot add app '{}' as it already exists. Current details are:\n{}",
+            app_name.blue(), listing
+        ));
     }
 
     db::add_app(&app_name, &exe_name, &params, &search_term, &search_method).await?;
@@ -95,44 +97,11 @@ pub async fn add_app(
         search_method,
         param_info
     ))
-
-    /*
-    match db::add_app(&app_name, &exe_name, &params, &search_term, &search_method).await {
-        Ok(_) => {
-            let param_info = if let Some(unwrapped_params) = params {
-                format!(" Params '{}'", unwrapped_params.magenta())
-            } else {
-                String::new()
-            };
-
-            info!(
-                "Added App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'{}",
-                app_name.blue(),
-                exe_name.magenta(),
-                search_term.magenta(),
-                search_method,
-                param_info
-            );
-        }
-        Err(error) => {
-            error!("Error adding app '{}': {}", app_name.blue(), error);
-        }
-    }
-    */
 }
 
 pub async fn delete_app(app_name: &str) -> Result<String, Report> {
-    todo!("Delete not implemented yet.")
-    /*
-    match db::delete_app(app_name).await {
-        Ok(_) => {
-            info!("Deleted app '{}'", app_name.blue());
-        }
-        Err(error) => {
-            error!("Error deleting app '{}': {}", app_name, error);
-        }
-    }
-    */
+    db::delete_app(app_name).await?;
+    Ok(format!("Successfully deleted app '{}'", app_name.blue()))
 }
 
 async fn update_app_path_for_list(apps: Vec<data::App>) {
@@ -202,25 +171,18 @@ pub async fn update_app(app_name: Option<String>) -> Result<String, Report> {
 pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Report> {
     match app_name {
         Some(app_name) => {
-            let app = db::get_app(&app_name).await?;
+            let app = db::get_app(&app_name)
+                .await
+                .wrap_err("Unable to create app listing".to_string())?;
             Ok(format!(
                 "{}",
                 tabled::Table::new(vec![app]).with(Style::modern())
             ))
-            /*
-            Ok(app) => {
-                Ok(format!("{}", tabled::Table::new(vec![app]).with(Style::modern())))
-            }
-            Err(e) => {
-                Err(eyre::eyre!(
-                    "Failed to find app '{}', unable to do list: {:?}",
-                    app_name, e
-                ))
-            }
-            */
         }
         None => {
-            let apps = db::get_apps().await?;
+            let apps = db::get_apps()
+                .await
+                .wrap_err("Unable to create app listing".to_string())?;
 
             if apps.is_empty() {
                 return Ok("No apps to list.".to_string());
@@ -250,7 +212,7 @@ pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Re
                 }
             };
 
-            Ok(format!("{}\n{}", "App Listing".yellow(), table))
+            Ok(format!("{}\n{}", "App Listing".blue(), table))
         }
     }
 }

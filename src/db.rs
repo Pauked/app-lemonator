@@ -61,7 +61,7 @@ pub async fn get_app(app: &str) -> Result<data::App, Report> {
         .bind(app.to_lowercase())
         .fetch_one(&db)
         .await
-        .wrap_err(format!("Failed to get app '{}'", app))
+        .wrap_err(format!("Failed to find app named '{}'", app))
 }
 
 pub async fn get_apps() -> Result<Vec<data::App>, Report> {
