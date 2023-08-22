@@ -1,7 +1,7 @@
-use color_eyre::{eyre, eyre::Context, Report, Result};
+use color_eyre::{eyre::Context, owo_colors::OwoColorize, Report, Result};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Confirm};
-use log::{debug, error};
+use log::{debug, error, info};
 use tabled::{
     builder::Builder,
     settings::{object::Rows, Modify, Style, Width},
@@ -72,12 +72,13 @@ pub async fn add_app(
     if (db::get_app(&app_name).await).is_ok() {
         let listing = match list_app(Some(app_name.clone()), false).await {
             Ok(output) => output,
-            Err(_) => "Unable to get listing".to_string()
+            Err(_) => "Unable to get listing".to_string(),
         };
 
         return Ok(format!(
             "Cannot add app '{}' as it already exists. Current details are:\n{}",
-            app_name.blue(), listing
+            app_name.blue(),
+            listing
         ));
     }
 
@@ -104,68 +105,82 @@ pub async fn delete_app(app_name: &str) -> Result<String, Report> {
     Ok(format!("Successfully deleted app '{}'", app_name.blue()))
 }
 
-async fn update_app_path_for_list(apps: Vec<data::App>) {
-    todo!("Update not implemented yet.")
-    /*
-    for app in apps {
-        let app_path = finder::get_app_path(app.clone(), None);
-        if !app_path.is_empty() {
-            match db::update_app_path(app.id, &app_path).await {
-                Ok(_) => {
-                    info!(
-                        "Updated app for app path '{}' to '{}'",
-                        app.app_name.blue(),
-                        app_path.magenta()
-                    );
-                }
+async fn update_app_path_for_list(apps: Vec<data::App>) -> Result<String, Report> {
+    let (success, failed) = {
+        let mut success = 0;
+        let mut failed = 0;
+
+        for app in &apps {
+            // I want this process to continue to run, even if one or more apps fail to update
+            match finder::get_app_path(app.clone(), None).await {
+                Ok(app_path) => match db::update_app_path(app.id, &app_path).await {
+                    Ok(_) => {
+                        info!(
+                            "Updated app for app path '{}' to '{}'",
+                            app.app_name.blue(),
+                            app_path.magenta()
+                        );
+                        success += 1;
+                    }
+                    Err(error) => {
+                        error!(
+                            "Error updating app path for '{}': {:?}",
+                            app.app_name, error
+                        );
+                        failed += 1;
+                    }
+                },
                 Err(error) => {
-                    error!(
-                        "Error updating app path for '{}': {}",
-                        app.app_name.blue(),
-                        error
-                    );
+                    error!("Error getting app path for '{}': {:?}", app.app_name, error);
+                    failed += 1;
                 }
             }
         }
-    }
-    */
+
+        (success, failed)
+    };
+
+    let message = {
+        if success == apps.len() {
+            "All apps updated successfully".green().to_string()
+        } else {
+            format!(
+                "{}\n{}",
+                format!("Successfully updated {} apps", success).green(),
+                format!("Failed to update {} apps", failed).red()
+            )
+        }
+    };
+    Ok(message)
 }
 
 pub async fn update_app(app_name: Option<String>) -> Result<String, Report> {
-    todo!("Update not implemented yet.")
-    /*
-    match app_name {
-        Some(app_name) => match db::get_app(&app_name).await {
-            Ok(app) => {
-                update_app_path_for_list(vec![app]).await;
-            }
-            Err(e) => {
-                error!(
-                    "Failed to find app '{}', unable to do update: {:?}",
-                    app_name, e
-                );
-            }
-        },
+    let apps = match app_name {
+        Some(app_name) => {
+            vec![db::get_app(&app_name)
+                .await
+                .wrap_err("Unable to update app path for selected app".to_string())?]
+        }
         None => {
-            if Confirm::with_theme(&ColorfulTheme::default())
+            if !Confirm::with_theme(&ColorfulTheme::default())
                 .with_prompt(
                     "Do you want to update the app path for all apps? This may take a while.",
                 )
                 .interact()
                 .unwrap()
             {
-                match db::get_apps().await {
-                    Ok(apps) => {
-                        update_app_path_for_list(apps).await;
-                    }
-                    Err(e) => {
-                        error!("Failed to get apps, unable to do update: {:?}", e);
-                    }
-                }
+                return Ok("Aborted app path update".to_string());
             }
+
+            db::get_apps()
+                .await
+                .wrap_err("Unable to update app path for all apps".to_string())?
         }
-    }
-    */
+    };
+
+    update_app_path_for_list(apps)
+        .await
+        .wrap_err("Unable to update app path")
 }
 
 pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Report> {

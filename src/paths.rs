@@ -65,6 +65,8 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
 
     debug!("Match files found - {:?}", results);
 
+    /*
+    // Extra UI out, not sure if needed
     if found_count > 0 {
         pb.finish_with_message(format!(
             "Finished searching, got {}.",
@@ -77,6 +79,7 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
         "Finished searching, no match found for '{}' in folder '{}'.",
         find_file, root_folder
     ));
+    */
 }
 
 fn get_matches_count(found_count: i32) -> String {

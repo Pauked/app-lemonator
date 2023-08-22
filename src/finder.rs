@@ -23,12 +23,12 @@ pub struct FileVersion {
 pub async fn get_app_path(app: data::App, app_path: Option<String>) -> Result<String, Report> {
     match app_path {
         Some(app_path) => Ok(app_path),
-        None => Ok(search_for_app_path(app.clone()).wrap_err(format!(
-            "Failed to set app path for app '{}' using search method '{}' and search term '{}'",
-            app.app_name.blue(),
+        None => search_for_app_path(app.clone()).wrap_err(format!(
+            "Failed to get app path for app '{}' using search method '{}' and search term '{}'",
+            app.app_name,
             app.search_method,
             app.search_term
-        ))?),
+        )),
     }
 }
 
