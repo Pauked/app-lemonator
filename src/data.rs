@@ -1,7 +1,10 @@
-use chrono::{DateTime, Utc, Local, Datelike, Timelike};
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Datelike, Local, Timelike, Utc};
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use tabled::Tabled;
+
+use crate::cli;
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow, Tabled)]
 pub struct App {
@@ -32,6 +35,68 @@ pub struct App {
         display_with = "display_option_utc_datetime_to_local"
     )]
     pub last_updated: Option<DateTime<Utc>>,
+}
+
+impl App {
+    pub fn new(
+        app_name: String,
+        exe_name: String,
+        params: Option<String>,
+        search_term: String,
+        search_method: String,
+    ) -> Self {
+        Self {
+            id: 0,
+            app_name,
+            exe_name,
+            params,
+            search_term,
+            search_method,
+            app_path: None,
+            last_opened: None,
+            last_updated: None,
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.app_name.is_empty() {
+            return Err("App Name is empty.".to_owned());
+        }
+        if self.exe_name.is_empty() {
+            return Err("Exe Name is empty.".to_owned());
+        }
+        if self.search_term.is_empty() {
+            return Err("Search Term is empty.".to_owned());
+        }
+
+        self.search_method
+            .parse::<cli::SearchMethod>()
+            .map_err(|error| {
+                format!(
+                    "Invalid search method '{}': {:?}",
+                    &self.search_method, error
+                )
+            })?;
+
+        Ok(())
+    }
+
+    pub fn to_description(&self) -> String {
+        let param_info = if let Some(unwrapped_params) = self.params.clone() {
+            format!(" Params '{}'", unwrapped_params.magenta())
+        } else {
+            String::new()
+        };
+
+        format!(
+            "App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'{}",
+            self.app_name.blue(),
+            self.exe_name.magenta(),
+            self.search_term.magenta(),
+            self.search_method.to_string().magenta(),
+            param_info
+        )
+    }
 }
 
 pub fn display_option_string(value: &Option<String>) -> String {

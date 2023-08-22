@@ -25,9 +25,7 @@ pub async fn get_app_path(app: data::App, app_path: Option<String>) -> Result<St
         Some(app_path) => Ok(app_path),
         None => search_for_app_path(app.clone()).wrap_err(format!(
             "Failed to get app path for app '{}' using search method '{}' and search term '{}'",
-            app.app_name,
-            app.search_method,
-            app.search_term
+            app.app_name, app.search_method, app.search_term
         )),
     }
 }
@@ -135,7 +133,10 @@ fn get_folder_search(app: data::App) -> Result<String, Report> {
     paths::find_file_in_folders(&base_folder, &app.exe_name, &mut files);
 
     if files.is_empty() {
-        return Err(eyre!(format!("No matches found for '{}'", &app.exe_name),));
+        return Err(eyre!(format!(
+            "No matches found for '{}' using recursive search in folder '{}'",
+            &app.exe_name, &base_folder
+        )));
     }
 
     if env::consts::OS == constants::OS_WINDOWS {

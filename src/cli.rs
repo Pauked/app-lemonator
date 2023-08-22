@@ -121,7 +121,13 @@ pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
         .await?),
         Action::Delete { app_name } => Ok(actions::delete_app(&app_name).await?),
         Action::Update { app_name } => Ok(actions::update_app(app_name).await?),
-        Action::List { app_name, full } => Ok(actions::list_app(app_name, full).await?),
+        Action::List { app_name, full } => {
+            let list_type = match full {
+                true => actions::ListType::Full,
+                false => actions::ListType::Summary,
+            };
+            Ok(actions::list_app(app_name, list_type).await?)
+        }
         Action::Reset {} => Ok(actions::reset()?),
         Action::Testings {} => Ok(actions::testings()?),
         Action::Export { file_out: file } => Ok(actions::export(file).await?),

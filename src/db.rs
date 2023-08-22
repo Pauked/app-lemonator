@@ -1,4 +1,4 @@
-use crate::{cli::SearchMethod, data};
+use crate::data;
 use chrono::Utc;
 use eyre::{Context, Report};
 use log::debug;
@@ -16,41 +16,40 @@ static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations fr
 pub async fn create_db() -> Result<bool, eyre::Report> {
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
         debug!("Creating database {}", DB_URL);
-        Sqlite::create_database(DB_URL).await.wrap_err("Unable to create database")?;
-        debug!("Create database success");
+        Sqlite::create_database(DB_URL)
+            .await
+            .wrap_err("Unable to create database")?;
+        debug!("Successfully created database");
     } else {
         debug!("Database already exists");
     }
 
     let db = SqlitePool::connect(DB_URL).await.unwrap();
-    let migration_results = MIGRATOR.run(&db).await.wrap_err("Unable to run database migrations")?;
+    let migration_results = MIGRATOR
+        .run(&db)
+        .await
+        .wrap_err("Unable to run database migrations");
     debug!("Migration success");
     debug!("Migration detail: {:?}", migration_results);
     Ok(true)
 }
 
-pub async fn add_app(
-    app_name: &str,
-    exe_name: &str,
-    params: &Option<String>,
-    search_term: &str,
-    search_method: &SearchMethod,
-) -> Result<sqlx::sqlite::SqliteQueryResult, Report> {
+pub async fn add_app(app: &data::App) -> Result<sqlx::sqlite::SqliteQueryResult, Report> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
     sqlx::query(
         "INSERT INTO apps (app_name, exe_name, params, search_term, search_method) VALUES (?,?,?,?,?)",
     )
-    .bind(app_name)
-    .bind(exe_name)
-    .bind(params)
-    .bind(search_term)
-    .bind(search_method.to_string())
+    .bind(&app.app_name)
+    .bind(&app.exe_name)
+    .bind(&app.params)
+    .bind(&app.search_term)
+    .bind(&app.search_method)
     .execute(&db)
     .await
     .wrap_err(format!(
         "Failed to add app '{}' with exe_name '{}' and params '{:?}'",
-        app_name, exe_name, params
+        app.app_name, app.exe_name, app.params
     ))
 }
 
@@ -98,7 +97,10 @@ pub async fn update_last_opened(id: i32) -> Result<sqlx::sqlite::SqliteQueryResu
         .bind(id)
         .execute(&db)
         .await
-        .wrap_err(format!("Failed to update last opened for app with id '{}'", id))
+        .wrap_err(format!(
+            "Failed to update last opened for app with id '{}'",
+            id
+        ))
 }
 
 pub async fn delete_app(app: &str) -> Result<sqlx::sqlite::SqliteQueryResult, Report> {

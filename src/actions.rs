@@ -1,3 +1,5 @@
+use std::{fs::File, io::Write};
+
 use color_eyre::{eyre::Context, owo_colors::OwoColorize, Report, Result};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Confirm};
@@ -12,6 +14,11 @@ use crate::{
     db::{self},
     finder, paths, runner,
 };
+
+pub enum ListType {
+    Full,
+    Summary,
+}
 
 pub async fn create_db() -> Result<bool, Report> {
     db::create_db().await
@@ -70,7 +77,7 @@ pub async fn add_app(
 ) -> Result<String, Report> {
     // If the app already exists, this is "OK". Report back the details of what is stored.
     if (db::get_app(&app_name).await).is_ok() {
-        let listing = match list_app(Some(app_name.clone()), false).await {
+        let listing = match list_app(Some(app_name.clone()), ListType::Summary).await {
             Ok(output) => output,
             Err(_) => "Unable to get listing".to_string(),
         };
@@ -82,22 +89,30 @@ pub async fn add_app(
         ));
     }
 
-    db::add_app(&app_name, &exe_name, &params, &search_term, &search_method).await?;
+    let new_app = data::App::new(
+        app_name,
+        exe_name,
+        params,
+        search_term,
+        search_method.to_string(),
+    );
 
-    let param_info = if let Some(unwrapped_params) = params {
-        format!(" Params '{}'", unwrapped_params.magenta())
-    } else {
-        String::new()
-    };
+    if let Err(error) = new_app.validate() {
+        return Err(eyre::eyre!(
+            "Error adding app, validation error - {:?}",
+            error
+        ));
+    }
 
-    Ok(format!(
-        "Added App Name '{}', Exe Name '{}', Search Term '{}', Search Method '{}'{}",
-        app_name.blue(),
-        exe_name.magenta(),
-        search_term.magenta(),
-        search_method,
-        param_info
-    ))
+    db::add_app(&new_app)
+        .await
+        .wrap_err("Error adding app".to_string())?;
+
+    let app = db::get_app(&new_app.app_name)
+        .await
+        .wrap_err("Error adding app, error retrieving details after save")?;
+
+    Ok(format!("Successfully added {}", app.to_description()))
 }
 
 pub async fn delete_app(app_name: &str) -> Result<String, Report> {
@@ -183,12 +198,12 @@ pub async fn update_app(app_name: Option<String>) -> Result<String, Report> {
         .wrap_err("Unable to update app path")
 }
 
-pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Report> {
+pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<String, Report> {
     match app_name {
         Some(app_name) => {
             let app = db::get_app(&app_name)
                 .await
-                .wrap_err("Unable to create app listing".to_string())?;
+                .wrap_err("Unable to generate app listing".to_string())?;
             Ok(format!(
                 "{}",
                 tabled::Table::new(vec![app]).with(Style::modern())
@@ -197,18 +212,18 @@ pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Re
         None => {
             let apps = db::get_apps()
                 .await
-                .wrap_err("Unable to create app listing".to_string())?;
+                .wrap_err("Unable to generate app listing".to_string())?;
 
             if apps.is_empty() {
                 return Ok("No apps to list.".to_string());
             }
 
-            let table = match full {
-                true => tabled::Table::new(apps)
+            let table = match list_type {
+                ListType::Full => tabled::Table::new(apps)
                     .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
                     .with(Style::modern())
                     .to_string(),
-                _ => {
+                ListType::Summary => {
                     let mut builder = Builder::default();
                     builder.set_header(["App Name", "App Path", "Last Opened", "Last Updated"]);
                     for app in apps {
@@ -227,7 +242,7 @@ pub async fn list_app(app_name: Option<String>, full: bool) -> Result<String, Re
                 }
             };
 
-            Ok(format!("{}\n{}", "App Listing".blue(), table))
+            Ok(table)
         }
     }
 }
@@ -252,116 +267,105 @@ pub fn testings() -> Result<String, Report> {
 }
 
 pub async fn export(file_out: Option<String>) -> Result<String, Report> {
-    todo!("Export not implemented yet.")
-    /*
-    match db::get_apps().await {
-        Ok(apps) => {
-            let file_checked: String = match file_out {
-                Some(file) => file,
-                None => String::new(),
-            };
-            let output_file = paths::get_export_file_name(
-                &file_checked,
-                dirs::document_dir().unwrap(),
-                &paths::get_unique_export_file_name(),
-            );
+    let apps = db::get_apps()
+        .await
+        .wrap_err("Unable to export".to_string())?;
 
-            if paths::file_exists(&output_file)
-                && !Confirm::with_theme(&ColorfulTheme::default())
-                    .with_prompt(format!(
-                        "Export file '{}' already exists, do you want to overwrite it?",
-                        output_file
-                    ))
-                    .interact()
-                    .unwrap()
-            {
-                info!("Export cancelled.");
-                return;
-            }
+    let file_checked: String = match file_out {
+        Some(file) => file,
+        None => String::new(),
+    };
+    let output_file = paths::get_export_file_name(
+        &file_checked,
+        dirs::document_dir().unwrap(),
+        &paths::get_unique_export_file_name(),
+    );
 
-            match serde_json::to_string(&apps) {
-                Ok(serialized) => match File::create(&output_file) {
-                    Ok(mut file) => match file.write_all(serialized.as_bytes()) {
-                        Ok(_) => {
-                            info!("Exported apps to '{}'", output_file);
-                        }
-                        Err(error) => {
-                            error!("Error writing to file to export: {}", error);
-                        }
-                    },
-                    Err(error) => {
-                        error!("Error creating file to export: {}", error);
-                    }
-                },
-                Err(error) => {
-                    error!("Error serializing apps to export: {}", error);
-                }
-            }
-        }
-        Err(error) => {
-            error!("Error getting apps to export: {}", error);
-        }
+    if paths::file_exists(&output_file)
+        && !Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(format!(
+                "Export file '{}' already exists, do you want to overwrite it?",
+                output_file
+            ))
+            .interact()
+            .unwrap()
+    {
+        return Ok("Aborted export".to_string());
     }
-    */
+
+    let serialized = serde_json::to_string(&apps)
+        .wrap_err("Unable to export, error serializing apps to export:".to_string())?;
+    let mut file = File::create(&output_file).wrap_err(format!(
+        "Unable to export, error creating file to export: '{}'",
+        output_file
+    ))?;
+    file.write_all(serialized.as_bytes()).wrap_err(format!(
+        "Unable to export, error writing to file to export: '{}'",
+        output_file
+    ))?;
+
+    Ok(format!(
+        "{}",
+        format!("Successfully exported apps to '{}'", output_file).green()
+    ))
 }
 
 pub async fn import(file_in: String) -> Result<String, Report> {
-    todo!("Import not implemented yet.")
-    /*
-    match File::open(&file_in) {
-        Ok(file) => {
-            let deserialized: Vec<db::App> = match serde_json::from_reader(file) {
-                Ok(deserialized) => deserialized,
-                Err(error) => {
-                    error!(
-                        "Error deserializing file '{}' to import: {}",
-                        file_in, error
-                    );
-                    return;
-                }
-            };
+    let file = File::open(&file_in).wrap_err(format!(
+        "Unable to import, error opening file '{}'",
+        file_in
+    ))?;
+    let deserialized: Vec<data::App> = serde_json::from_reader(file).wrap_err(format!(
+        "Unable to import, error deserializing file '{}'",
+        file_in
+    ))?;
 
-            let mut imported_count = 0;
+    let mut success = 0;
+    let mut skipped = 0;
+    let mut failed = 0;
 
-            for app in deserialized {
-                let search_method: cli::SearchMethod = app.search_method.parse().unwrap();
-
-                if (db::get_app(&app.app_name).await).is_ok() {
-                    info!("App '{}' already exists, skipping.", app.app_name.blue());
-                } else {
-                    match db::add_app(
-                        &app.app_name,
-                        &app.exe_name,
-                        &app.params,
-                        &app.search_term,
-                        &search_method,
-                    )
-                    .await
-                    {
-                        Ok(_) => {
-                            info!("Imported app '{}'", app.app_name.blue());
-                            imported_count += 1;
-                        }
-                        Err(error) => {
-                            error!("Error importing app '{}': {}", app.app_name.blue(), error);
-                        }
-                    }
-                }
-            }
-
-            if imported_count == 0 {
-                info!("No apps imported from '{}'", file_in);
-                return;
-            }
-
-            info!(
-                "Successfully imported {} apps from '{}'",
-                imported_count, file_in
+    for app in &deserialized {
+        if let Err(error) = app.validate() {
+            error!(
+                "{} '{}', {} - {:?}",
+                "Unable to import app".red(),
+                app.app_name.blue(),
+                "validation error".red(),
+                error
             );
+            failed += 1;
+            continue;
         }
-        Err(error) => {
-            error!("Error opening file '{}' to import: {}", file_in, error);
+
+        if (db::get_app(&app.app_name).await).is_ok() {
+            info!("Skipped app '{}', already exists", app.app_name.blue());
+            skipped += 1;
+        } else {
+            match db::add_app(app).await {
+                Ok(_) => {
+                    info!("Successfully added {}", app.to_description());
+                    success += 1;
+                }
+                Err(error) => {
+                    error!("Unable to add app '{}': {:?}", app.app_name, error);
+                    failed += 1;
+                }
+            }
         }
     }
-    */
+
+    let message = {
+        if success == deserialized.len() {
+            "Successfully imported all apps".green().to_string()
+        } else {
+            format!(
+                "{}\n{}\n{}",
+                format!("Successfully imported {} apps", success).green(),
+                format!("Skipped {} apps", skipped).yellow(),
+                format!("Failed to import {} apps", failed).red()
+            )
+        }
+    };
+
+    Ok(message)
 }
