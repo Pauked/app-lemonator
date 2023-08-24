@@ -1,8 +1,6 @@
-use std::process;
-
 use clap::Parser;
-use colored::Colorize;
-use log::{debug, info};
+use log::debug;
+use std::process;
 
 mod actions;
 mod cli;
@@ -23,7 +21,6 @@ async fn run() -> eyre::Result<String> {
         constants::APP_NAME,
         paths::get_current_exe()
     );
-    info!("{}", welcome_to_lemonator());
 
     let args = cli::Args::parse();
     log::debug!("Args {:?}", args);
@@ -32,25 +29,6 @@ async fn run() -> eyre::Result<String> {
     Ok(cli_result)
 }
 
-fn welcome_to_lemonator() -> String {
-    let mut welcome = String::new();
-    welcome.push_str("Welcome to ");
-    welcome.push_str("App-Lemonator".yellow().to_string().as_str());
-    /*
-    welcome.push_str(r#"                         _                                  _             "#);
-    welcome.push_str(r#"                        | |                                | |            "#);
-    welcome.push_str(r#"  __ _ _ __  _ __ ______| | ___ _ __ ___   ___  _ __   __ _| |_ ___  _ __ "#);
-    welcome.push_str(r#" / _` | '_ \| '_ \______| |/ _ \ '_ ` _ \ / _ \| '_ \ / _` | __/ _ \| '__|"#);
-    welcome.push_str(r#"| (_| | |_) | |_) |     | |  __/ | | | | | (_) | | | | (_| | || (_) | |   "#);
-    welcome.push_str(r#" \__,_| .__/| .__/      |_|\___|_| |_| |_|\___/|_| |_|\__,_|\__\___/|_|   "#);
-    welcome.push_str(r#"      | |   | |                                                           "#);
-    welcome.push_str(r#"      |_|   |_|                                                           "#);
-    */
-    welcome.push('!');
-    welcome
-}
-
-// Code layout from: https://github.com/sharkdp/bat/blob/master/src/bin/bat/main.rs#L364
 fn main() {
     match run() {
         Err(error) => {

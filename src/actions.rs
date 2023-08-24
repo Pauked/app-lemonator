@@ -28,6 +28,7 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
     let app = db::get_app(app_name)
         .await
         .wrap_err("Unable to open app".to_string())?;
+
     let app_path = finder::get_app_path(app.clone(), app.app_path.clone())
         .await
         .wrap_err("Unable to open app".to_string())?;
