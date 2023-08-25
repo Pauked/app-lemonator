@@ -1,10 +1,41 @@
 use chrono::{DateTime, Datelike, Local, Timelike, Utc};
+use clap::ValueEnum;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use strum_macros::Display;
+use strum_macros::EnumString;
 use tabled::Tabled;
 
-use crate::cli;
+#[derive(
+    ValueEnum, Clone, Serialize, Deserialize, Debug, Display, EnumString, PartialEq, sqlx::Type,
+)]
+pub enum SearchMethod {
+    /// Uses PowerShell to run the Get-AppXPackage cmdlet to retrieve InstallLocation.
+    #[value(alias("PSGetApp"))]
+    PSGetApp,
+    /// Given a root folder, it will recursively search for the app.
+    #[value(alias("FolderSearch"))]
+    FolderSearch,
+    /// Just runs the app directly. No lookups, you provide the full path.
+    #[value(alias("Shortcut"))]
+    Shortcut,
+}
+
+#[derive(
+    ValueEnum, Clone, Debug, Serialize, Deserialize, Display, EnumString, PartialEq, sqlx::Type,
+)]
+pub enum OperatingSystem {
+    /// Windows
+    #[value(alias("Windows"))]
+    Windows,
+    /// MacOs
+    #[value(alias("MacOS"))]
+    MacOS,
+    /// Unknown! Sorry Linux.
+    #[value(alias("Unknown"))]
+    Unknown,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow, Tabled)]
 pub struct App {
@@ -20,7 +51,7 @@ pub struct App {
     #[tabled(rename = "Search Term")]
     pub search_term: String,
     #[tabled(rename = "Search Method")]
-    pub search_method: String,
+    pub search_method: SearchMethod,
     #[tabled(rename = "App Path", display_with = "display_option_string")]
     pub app_path: Option<String>,
     #[serde(skip)]
@@ -35,6 +66,8 @@ pub struct App {
         display_with = "display_option_utc_datetime_to_local"
     )]
     pub last_updated: Option<DateTime<Utc>>,
+    #[tabled(rename = "Operating System")]
+    pub operating_system: OperatingSystem,
 }
 
 impl App {
@@ -43,7 +76,8 @@ impl App {
         exe_name: String,
         params: Option<String>,
         search_term: String,
-        search_method: String,
+        search_method: SearchMethod,
+        operating_system: OperatingSystem,
     ) -> Self {
         Self {
             id: 0,
@@ -55,6 +89,7 @@ impl App {
             app_path: None,
             last_opened: None,
             last_updated: None,
+            operating_system,
         }
     }
 
@@ -68,15 +103,14 @@ impl App {
         if self.search_term.is_empty() {
             return Err("Search Term is empty.".to_owned());
         }
-
-        self.search_method
-            .parse::<cli::SearchMethod>()
-            .map_err(|error| {
-                format!(
-                    "Invalid search method '{}': {:?}",
-                    &self.search_method, error
-                )
-            })?;
+        if self.search_method == SearchMethod::PSGetApp
+            && self.operating_system != OperatingSystem::Windows
+        {
+            return Err(format!(
+                "Search method '{}' is only supported on Windows",
+                &self.search_method
+            ));
+        }
 
         Ok(())
     }
@@ -125,4 +159,111 @@ fn format_local_datetime(local_datetime: &DateTime<Local>) -> String {
         local_datetime.minute(),
         local_datetime.second()
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{App, OperatingSystem, SearchMethod};
+
+    #[test]
+    fn app_validate_psgetapp_on_macos_fails() {
+        // Arrange
+        let new_app = App::new(
+            "app_name".to_string(),
+            "exe_name".to_string(),
+            None,
+            "search_term".to_string(),
+            SearchMethod::PSGetApp,
+            OperatingSystem::MacOS,
+        );
+
+        // Act
+        let actual = new_app.validate();
+
+        // Assert
+        assert!(actual.is_err());
+        assert!(actual.unwrap_err().contains(&format!(
+            "Search method '{}' is only supported on Windows",
+            &new_app.search_method
+        )));
+    }
+
+    #[test]
+    fn app_validate_no_app_name() {
+        // Arrange
+        let new_app = App::new(
+            "".to_string(),
+            "exe_name".to_string(),
+            None,
+            "search_term".to_string(),
+            SearchMethod::FolderSearch,
+            OperatingSystem::Windows,
+        );
+
+        // Act
+        let actual = new_app.validate();
+
+        // Assert
+        assert!(actual.is_err());
+        assert!(actual.unwrap_err().contains("App Name is empty."));
+    }
+
+    #[test]
+    fn app_validate_no_exe_name() {
+        // Arrange
+        let new_app = App::new(
+            "app_name".to_string(),
+            "".to_string(),
+            None,
+            "search_term".to_string(),
+            SearchMethod::FolderSearch,
+            OperatingSystem::Windows,
+        );
+
+        // Act
+        let actual = new_app.validate();
+
+        // Assert
+        assert!(actual.is_err());
+        assert!(actual.unwrap_err().contains("Exe Name is empty."));
+    }
+
+    #[test]
+    fn app_validate_no_search_term() {
+        // Arrange
+        let new_app = App::new(
+            "app_name".to_string(),
+            "exe_name".to_string(),
+            None,
+            "".to_string(),
+            SearchMethod::FolderSearch,
+            OperatingSystem::Windows,
+        );
+
+        // Act
+        let actual = new_app.validate();
+
+        // Assert
+        assert!(actual.is_err());
+        assert!(actual.unwrap_err().contains("Search Term is empty."));
+    }
+
+    #[test]
+    fn app_validate_psgetapp_on_windows_success() {
+        // Arrange
+        let new_app = App::new(
+            "app_name".to_string(),
+            "exe_name".to_string(),
+            None,
+            "search_term".to_string(),
+            SearchMethod::PSGetApp,
+            OperatingSystem::Windows,
+        );
+
+        // Act
+        let actual = new_app.validate();
+
+        // Assert
+        assert!(actual.is_ok());
+    }
 }

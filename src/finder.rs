@@ -6,8 +6,8 @@ use log::{debug, error};
 use powershell_script::PsScriptBuilder;
 
 use crate::{
-    cli::SearchMethod,
     constants, data,
+    data::SearchMethod,
     paths::{self},
 };
 
@@ -31,8 +31,7 @@ pub async fn get_app_path(app: data::App, app_path: Option<String>) -> Result<St
 }
 
 fn search_for_app_path(app: data::App) -> Result<String, Report> {
-    let search_method: SearchMethod = app.search_method.parse().unwrap();
-    match search_method {
+    match app.search_method {
         SearchMethod::PSGetApp => Ok(get_powershell_getxapppackage(app)?),
         SearchMethod::FolderSearch => Ok(get_folder_search(app)?),
         SearchMethod::Shortcut => Ok(get_shortcut(app)?),
@@ -40,9 +39,11 @@ fn search_for_app_path(app: data::App) -> Result<String, Report> {
 }
 
 fn run_powershell_cmd(powershell_cmd: &str) -> Result<Vec<String>, Report> {
-    // FIXME: Rework code so you CANNOT get here
-    if env::consts::OS == constants::OS_MACOS {
-        return Err(eyre!("PowerShell is not supported on Mac"));
+    if env::consts::OS != constants::OS_WINDOWS {
+        return Err(eyre!(format!(
+            "PowerShell is only supported on Windows, not on '{}'",
+            env::consts::OS
+        )));
     }
 
     let ps = PsScriptBuilder::new()
@@ -167,12 +168,15 @@ fn get_folder_search(app: data::App) -> Result<String, Report> {
 
         return Ok(highest_version.app.clone());
     } else if env::consts::OS == constants::OS_MACOS && files.len() == 1 {
-        // FIXME: This is a hack for now. Need file versio checking for Mac.
+        // FIXME: This is a hack for now. Need file version checking for Mac.
         debug!("App found: {:?}", files[0].clone());
         return Ok(files[0].clone());
     }
 
-    Err(eyre!("Unsupported OS for folder search"))
+    Err(eyre!(format!(
+        "Unsupported OS '{}', for folder search",
+        env::consts::OS
+    )))
 }
 
 fn get_shortcut(app: data::App) -> Result<String, Report> {

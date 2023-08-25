@@ -365,7 +365,7 @@ mod tests {
     #[test]
     fn check_local_app_data_folder() {
         // Arrange
-        let source_path = r#"%localappdata%\JetBrains"#;
+        let source_path = r"%localappdata%\JetBrains";
         let mut file_path = PathBuf::from(get_local_app_data_folder());
         file_path.push("JetBrains");
         let expected = file_path.display().to_string();
@@ -380,8 +380,8 @@ mod tests {
     #[test]
     fn check_dropbox_folders_both_set() {
         // Arrange
-        let expected_personal = r#"C:\DropBox\Personal"#;
-        let expected_business = r#"C:\DropBox\Business"#;
+        let expected_personal = r"C:\DropBox\Personal";
+        let expected_business = r"C:\DropBox\Business";
         let json_data = r#"
 {
     "personal": {
@@ -410,8 +410,8 @@ mod tests {
     #[test]
     fn check_dropbox_folders_personal_set() {
         // Arrange
-        let expected_personal = r#"C:\DropBox\Personal"#;
-        let expected_business = r#""#;
+        let expected_personal = r"C:\DropBox\Personal";
+        let expected_business = "";
         let json_data = r#"
 {
     "personal": {
@@ -434,8 +434,8 @@ mod tests {
     #[test]
     fn check_dropbox_folders_business_set() {
         // Arrange
-        let expected_personal = r#""#;
-        let expected_business = r#"C:\DropBox\Business"#;
+        let expected_personal = "";
+        let expected_business = r"C:\DropBox\Business";
         let json_data = r#"
 {
     "business": {
@@ -458,8 +458,8 @@ mod tests {
     #[test]
     fn check_dropbox_folders_none_set() {
         // Arrange
-        let expected_personal = r#""#;
-        let expected_business = r#""#;
+        let expected_personal = "";
+        let expected_business = "";
         let json_data = r#" { }"#;
 
         // Act
@@ -508,7 +508,7 @@ mod tests {
     fn get_export_file_name_full_path() {
         // Arrange
         use crate::paths::get_unique_export_file_name;
-        let source = r#"C:\Windows\test.json"#;
+        let source = r"C:\Windows\test.json";
         let default_path = dirs::document_dir().unwrap();
         let default_file_name = get_unique_export_file_name();
 
@@ -524,7 +524,7 @@ mod tests {
     fn get_export_file_name_just_path() {
         // Arrange
         use crate::paths::{get_full_path, get_unique_export_file_name};
-        let source = r#"C:\Windows\"#;
+        let source = r"C:\Windows\";
         let default_path = dirs::document_dir().unwrap();
         let default_file_name = get_unique_export_file_name();
         let expected = get_full_path(source, &default_file_name);

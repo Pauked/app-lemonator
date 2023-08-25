@@ -13,6 +13,10 @@ const DB_FILE: &str = "sqlite.db";
 
 static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations from the ./migrations directory
 
+pub async fn database_exists() -> bool {
+    Sqlite::database_exists(DB_URL).await.unwrap_or(false)
+}
+
 pub async fn create_db() -> Result<bool, eyre::Report> {
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
         debug!("Creating database {}", DB_URL);
@@ -25,12 +29,11 @@ pub async fn create_db() -> Result<bool, eyre::Report> {
     }
 
     let db = SqlitePool::connect(DB_URL).await.unwrap();
-    let migration_results = MIGRATOR
+    MIGRATOR
         .run(&db)
         .await
-        .wrap_err("Unable to run database migrations");
+        .wrap_err("Unable to run database migrations")?;
     debug!("Migration success");
-    debug!("Migration detail: {:?}", migration_results);
     Ok(true)
 }
 
@@ -38,13 +41,14 @@ pub async fn add_app(app: &data::App) -> Result<sqlx::sqlite::SqliteQueryResult,
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
     sqlx::query(
-        "INSERT INTO apps (app_name, exe_name, params, search_term, search_method) VALUES (?,?,?,?,?)",
+        "INSERT INTO apps (app_name, exe_name, params, search_term, search_method, operating_system) VALUES (?,?,?,?,?,?)",
     )
     .bind(&app.app_name)
     .bind(&app.exe_name)
     .bind(&app.params)
     .bind(&app.search_term)
     .bind(&app.search_method)
+    .bind(&app.operating_system)
     .execute(&db)
     .await
     .wrap_err(format!(
@@ -65,6 +69,7 @@ pub async fn get_app(app: &str) -> Result<data::App, Report> {
 
 pub async fn get_apps() -> Result<Vec<data::App>, Report> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
+
     sqlx::query_as::<_, data::App>("SELECT * FROM apps")
         .fetch_all(&db)
         .await

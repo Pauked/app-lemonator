@@ -1,13 +1,15 @@
 [package]
 name = "app-lemonator"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
+description = "Keeps the running of your apps lemony fresh!"
+authors = ["Paul"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 powershell_script = "1.1"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "cargo"] }
 sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite", "chrono"] }
 tokio = { version = "1.32", features = ["macros", "rt-multi-thread"] }
 colored = "2"

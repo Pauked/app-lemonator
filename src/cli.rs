@@ -1,27 +1,23 @@
-use clap::{Parser, ValueEnum};
+use std::env;
 
-use strum_macros::Display;
-use strum_macros::EnumString;
+use clap::Parser;
 
 use crate::actions;
+use crate::constants;
+use crate::data;
+
+const CRATE_NAME: &str = env!("CARGO_PKG_NAME");
 
 // https://github.com/clap-rs/clap/blob/master/examples/git-derive.rs
 // https://github.com/glotlabs/gdrive/blob/main/src/main.rs
 #[derive(Parser, Debug, PartialEq)]
-#[command(
-    name = "App Lemonator",
-    version = "0.2.0",
-    author = "Paul",
-    about = "Keeps the running of your apps lemony fresh!"
-)]
+#[clap(about, author, name = CRATE_NAME, version)]
 pub struct Args {
     #[command(subcommand)]
     pub action: Action,
 }
 
-// #[derive(Subcommand, Debug, PartialEq)]
 #[derive(Parser, Debug, PartialEq)]
-//#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum Action {
     /// Opens an app.
     #[clap(short_flag = 'o')]
@@ -38,7 +34,7 @@ pub enum Action {
         search_term: String,
         /// Search method to find app.
         #[clap(value_enum)]
-        search_method: SearchMethod,
+        search_method: data::SearchMethod,
         /// Parameters to pass to app.
         #[arg(long)]
         params: Option<Vec<String>>,
@@ -70,32 +66,19 @@ pub enum Action {
     #[clap(short_flag = 'r')]
     Reset,
 
-    /// Testings, sssssh.
-    Testings,
-
     /// Exports the database to a JSON file.
+    #[clap(short_flag = 'e')]
     Export {
         /// File name to export to. Can be left blank, app will save to Documents folder.
         file_out: Option<String>,
     },
 
+    /// Imports a JSON file to the database. Existing records will be skipped.
+    #[clap(short_flag = 'i')]
     Import {
         /// File name to import from.
         file_in: String,
     },
-}
-
-#[derive(ValueEnum, Clone, Debug, Display, EnumString, PartialEq)]
-pub enum SearchMethod {
-    /// Uses PowerShell to run the Get-AppXPackage cmdlet to retrieve InstallLocation.
-    #[value(alias("PSGetApp"))]
-    PSGetApp,
-    /// Given a root folder, it will recursively search for the app.
-    #[value(alias("FolderSearch"))]
-    FolderSearch,
-    /// Just runs the app directly. No lookups, you provide the full path.
-    #[value(alias("Shortcut"))]
-    Shortcut,
 }
 
 pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
@@ -117,6 +100,7 @@ pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
             params.map(|p| p.join(" ")),
             search_term,
             search_method,
+            get_operating_system(),
         )
         .await?),
         Action::Delete { app_name } => Ok(actions::delete_app(&app_name).await?),
@@ -128,9 +112,16 @@ pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
             };
             Ok(actions::list_app(app_name, list_type).await?)
         }
-        Action::Reset {} => Ok(actions::reset()?),
-        Action::Testings {} => Ok(actions::testings()?),
+        Action::Reset {} => Ok(actions::reset().await?),
         Action::Export { file_out: file } => Ok(actions::export(file).await?),
         Action::Import { file_in: file } => Ok(actions::import(file).await?),
+    }
+}
+
+fn get_operating_system() -> data::OperatingSystem {
+    match env::consts::OS {
+        constants::OS_WINDOWS => data::OperatingSystem::Windows,
+        constants::OS_MACOS => data::OperatingSystem::MacOS,
+        _ => data::OperatingSystem::Unknown,
     }
 }

@@ -10,7 +10,7 @@ use tabled::{
 };
 
 use crate::{
-    cli, data,
+    data,
     db::{self},
     finder, paths, runner,
 };
@@ -74,7 +74,8 @@ pub async fn add_app(
     exe_name: String,
     params: Option<String>,
     search_term: String,
-    search_method: cli::SearchMethod,
+    search_method: data::SearchMethod,
+    operating_system: data::OperatingSystem,
 ) -> Result<String, Report> {
     // If the app already exists, this is "OK". Report back the details of what is stored.
     if (db::get_app(&app_name).await).is_ok() {
@@ -95,7 +96,8 @@ pub async fn add_app(
         exe_name,
         params,
         search_term,
-        search_method.to_string(),
+        search_method,
+        operating_system,
     );
 
     if let Err(error) = new_app.validate() {
@@ -248,7 +250,11 @@ pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<S
     }
 }
 
-pub fn reset() -> Result<String, Report> {
+pub async fn reset() -> Result<String, Report> {
+    if !db::database_exists().await {
+        return Ok("Database does not exist, nothing to reset.".to_string());
+    }
+
     // Prompt the user for confirmation to delete the file
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you want to reset the database? All data will be deleted.")
@@ -260,11 +266,6 @@ pub fn reset() -> Result<String, Report> {
     } else {
         Ok("Database reset not confirmed.".to_string())
     }
-}
-
-pub fn testings() -> Result<String, Report> {
-    // Could be any code calls, my WIP section
-    todo!("Testing!");
 }
 
 pub async fn export(file_out: Option<String>) -> Result<String, Report> {
