@@ -52,8 +52,27 @@ pub async fn add_app(app: &data::App) -> Result<sqlx::sqlite::SqliteQueryResult,
     .execute(&db)
     .await
     .wrap_err(format!(
-        "Failed to add app '{}' with exe_name '{}' and params '{:?}'",
-        app.app_name, app.exe_name, app.params
+        "Failed to add app '{:?}", app
+    ))
+}
+
+pub async fn edit_app(
+    lookup_app_name: &str,
+    app: &data::App,
+) -> Result<sqlx::sqlite::SqliteQueryResult, Report> {
+    let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+    sqlx::query("UPDATE apps SET app_name=$1, exe_name=$2, search_term=$3, search_method=$4, params=$5 WHERE app_name=$6 COLLATE NOCASE")
+    .bind(&app.app_name)
+    .bind(&app.exe_name)
+    .bind(&app.search_term)
+    .bind(&app.search_method)
+    .bind(&app.params)
+    .bind(lookup_app_name)
+    .execute(&db)
+    .await
+    .wrap_err(format!(
+        "Failed to edit app '{:?}'", app
     ))
 }
 

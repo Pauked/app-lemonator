@@ -118,7 +118,55 @@ pub async fn add_app(
     Ok(format!("Successfully added {}", app.to_description()))
 }
 
+pub async fn edit_app(
+    lookup_app_name: String,
+    app_name: Option<String>,
+    exe_name: Option<String>,
+    params: Option<String>,
+    search_term: Option<String>,
+    search_method: Option<data::SearchMethod>,
+) -> Result<String, Report> {
+    let mut app = db::get_app(&lookup_app_name)
+        .await
+        .wrap_err("Unable to edit app".to_string())?;
+
+    debug!(
+        "Before editing - lookup app name '{}', app record '{:?}'",
+        lookup_app_name, app
+    );
+    app.app_name = app_name.unwrap_or(app.app_name);
+    app.exe_name = exe_name.unwrap_or(app.exe_name);
+    if let Some(params) = params {
+        app.params = Some(params);
+    }
+    app.search_term = search_term.unwrap_or(app.search_term);
+    app.search_method = search_method.unwrap_or(app.search_method);
+    debug!(
+        "After editing - lookup app name '{}', app record '{:?}'",
+        lookup_app_name, app
+    );
+
+    if let Err(error) = app.validate() {
+        return Err(eyre::eyre!(
+            "Error editing app, validation error - {:?}",
+            error
+        ));
+    }
+
+    db::edit_app(&lookup_app_name, &app)
+        .await
+        .wrap_err("Unable to edit app".to_string())?;
+
+    Ok(format!("Successfully edited {}", app.to_description()))
+}
+
 pub async fn delete_app(app_name: &str) -> Result<String, Report> {
+    if (db::get_app(app_name).await).is_err() {
+        return Ok(format!(
+            "App '{}' does not exist, so cannot be deleted",
+            app_name.blue()
+        ));
+    }
     db::delete_app(app_name).await?;
     Ok(format!("Successfully deleted app '{}'", app_name.blue()))
 }
@@ -180,12 +228,13 @@ pub async fn update_app(app_name: Option<String>, force: bool) -> Result<String,
                 .wrap_err("Unable to update app path for selected app".to_string())?]
         }
         None => {
-            if !force && !Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt(
-                    "Do you want to update the app path for all apps? This may take a while.",
-                )
-                .interact()
-                .unwrap()
+            if !force
+                && !Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt(
+                        "Do you want to update the app path for all apps? This may take a while.",
+                    )
+                    .interact()
+                    .unwrap()
             {
                 return Ok("Aborted app path update".to_string());
             }
@@ -208,7 +257,7 @@ pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<S
                 .await
                 .wrap_err("Unable to generate app listing".to_string())?;
             Ok(format!(
-                "{}",
+                "\n{}",
                 tabled::Table::new(vec![app]).with(Style::modern())
             ))
         }
@@ -245,7 +294,7 @@ pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<S
                 }
             };
 
-            Ok(table)
+            Ok(format!("\n{}", table))
         }
     }
 }
@@ -256,13 +305,14 @@ pub async fn reset(force: bool) -> Result<String, Report> {
     }
 
     // Prompt the user for confirmation to delete the file
-    if force || Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Do you want to reset the database? All data will be deleted.")
-        .interact()
-        .unwrap()
+    if force
+        || Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("Do you want to reset the database? All data will be deleted.")
+            .interact()
+            .unwrap()
     {
         db::reset_db().wrap_err("Failed to reset database.")?;
-        Ok("Database reset.".to_string())
+        Ok("Successfully reset database.".green().to_string())
     } else {
         Ok("Database reset not confirmed.".to_string())
     }

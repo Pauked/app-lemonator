@@ -1,6 +1,6 @@
 [package]
 name = "app-lemonator"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Keeps the running of your apps lemony fresh!"
 authors = ["Paul"]
@@ -10,14 +10,18 @@ authors = ["Paul"]
 [dependencies]
 powershell_script = "1.1"
 clap = { version = "4", features = ["derive", "cargo"] }
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite", "chrono"] }
+sqlx = { version = "0.7", features = [
+    "runtime-tokio-native-tls",
+    "sqlite",
+    "chrono",
+] }
 tokio = { version = "1.32", features = ["macros", "rt-multi-thread"] }
 colored = "2"
 strum = "0.25"
 strum_macros = "0.25"
 regex = "1.9"
 eyre = "0.6"
-color-eyre  = { version = "0.6", default-features = false }
+color-eyre = { version = "0.6", default-features = false }
 chrono = "0.4"
 tabled = "0.14"
 log = "0.4"

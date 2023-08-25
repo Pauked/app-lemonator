@@ -38,6 +38,30 @@ pub enum Action {
         params: Option<Vec<String>>,
     },
 
+    /// Edits individual properties of an app in the database.
+    #[clap(short_flag = 'e', long_flag = "edit")]
+    Edit {
+        /// Look up on nice name of app to edit.
+        #[arg(requires = "edit")]
+        lookup_app_name: String,
+        /// Nice name for app.
+        #[arg(long, group = "edit")]
+        app_name: Option<String>,
+        /// Executable to find and run. For Shortcuts, can be full path and exe.
+        #[arg(long, group = "edit")]
+        exe_name: Option<String>,
+        /// Search text for app.
+        #[arg(long, group = "edit")]
+        search_term: Option<String>,
+        /// Search method to find app.
+        #[clap(value_enum)]
+        #[arg(long, group = "edit")]
+        search_method: Option<data::SearchMethod>,
+        /// Parameters to pass to app.
+        #[arg(long, group = "edit")]
+        params: Option<Vec<String>>,
+    },
+
     /// Deletes the app from the database.
     #[clap(short_flag = 'd', long_flag = "delete")]
     Delete { app_name: String },
@@ -73,7 +97,7 @@ pub enum Action {
     },
 
     /// Exports the database to a JSON file.
-    #[clap(short_flag = 'e', long_flag = "export")]
+    #[clap(short_flag = 'x', long_flag = "export")]
     Export {
         /// File name to export to. Can be left blank, app will save to Documents folder.
         file_out: Option<String>,
@@ -115,6 +139,22 @@ pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
             search_term,
             search_method,
             get_operating_system(),
+        )
+        .await?),
+        Action::Edit {
+            lookup_app_name,
+            app_name,
+            exe_name,
+            params,
+            search_term,
+            search_method,
+        } => Ok(actions::edit_app(
+            lookup_app_name,
+            app_name,
+            exe_name,
+            params.map(|p| p.join(" ")),
+            search_term,
+            search_method,
         )
         .await?),
         Action::Delete { app_name } => Ok(actions::delete_app(&app_name).await?),
