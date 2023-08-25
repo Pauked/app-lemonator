@@ -172,7 +172,7 @@ async fn update_app_path_for_list(apps: Vec<data::App>) -> Result<String, Report
     Ok(message)
 }
 
-pub async fn update_app(app_name: Option<String>) -> Result<String, Report> {
+pub async fn update_app(app_name: Option<String>, force: bool) -> Result<String, Report> {
     let apps = match app_name {
         Some(app_name) => {
             vec![db::get_app(&app_name)
@@ -180,7 +180,7 @@ pub async fn update_app(app_name: Option<String>) -> Result<String, Report> {
                 .wrap_err("Unable to update app path for selected app".to_string())?]
         }
         None => {
-            if !Confirm::with_theme(&ColorfulTheme::default())
+            if !force && !Confirm::with_theme(&ColorfulTheme::default())
                 .with_prompt(
                     "Do you want to update the app path for all apps? This may take a while.",
                 )
@@ -250,13 +250,13 @@ pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<S
     }
 }
 
-pub async fn reset() -> Result<String, Report> {
+pub async fn reset(force: bool) -> Result<String, Report> {
     if !db::database_exists().await {
         return Ok("Database does not exist, nothing to reset.".to_string());
     }
 
     // Prompt the user for confirmation to delete the file
-    if Confirm::with_theme(&ColorfulTheme::default())
+    if force || Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you want to reset the database? All data will be deleted.")
         .interact()
         .unwrap()
@@ -268,7 +268,7 @@ pub async fn reset() -> Result<String, Report> {
     }
 }
 
-pub async fn export(file_out: Option<String>) -> Result<String, Report> {
+pub async fn export(file_out: Option<String>, force: bool) -> Result<String, Report> {
     let apps = db::get_apps()
         .await
         .wrap_err("Unable to export".to_string())?;
@@ -284,6 +284,7 @@ pub async fn export(file_out: Option<String>) -> Result<String, Report> {
     );
 
     if paths::file_exists(&output_file)
+        && !force
         && !Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(format!(
                 "Export file '{}' already exists, do you want to overwrite it?",
