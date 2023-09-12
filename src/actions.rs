@@ -42,8 +42,9 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
                 app.app_name.blue(),
             ))?;
         debug!(
-            "Updated app for app_path '{}' to '{}'",
+            "Updated app '{}' app_path from '{}' to '{}'",
             app.app_name.blue(),
+            app.app_path.clone().unwrap_or_default().magenta(),
             app_path.magenta()
         );
     }
@@ -182,8 +183,9 @@ async fn update_app_path_for_list(apps: Vec<data::App>) -> Result<String, Report
                 Ok(app_path) => match db::update_app_path(app.id, &app_path).await {
                     Ok(_) => {
                         info!(
-                            "Updated app for app path '{}' to '{}'",
+                            "Updated app '{}' app_path from '{}' to '{}'",
                             app.app_name.blue(),
+                            app.app_path.clone().unwrap_or_default().magenta(),
                             app_path.magenta()
                         );
                         success += 1;
