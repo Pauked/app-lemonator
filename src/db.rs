@@ -95,24 +95,24 @@ pub async fn get_apps() -> Result<Vec<data::App>, Report> {
         .wrap_err("Failed to get list of all apps")
 }
 
-pub async fn update_app_details(
+pub async fn update_app_file_version(
     id: i32,
-    app_details: &data::FileVersion,
+    app_file_version: &data::FileVersion,
 ) -> Result<sqlx::sqlite::SqliteQueryResult, Report> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
     sqlx::query("UPDATE apps SET app_path = $2, app_description = $3, app_version = $4,
      last_updated = $5 WHERE id=$1 COLLATE NOCASE")
         .bind(id)
-        .bind(app_details.path.clone())
-        .bind(app_details.app_description.clone())
-        .bind(app_details.display_version())
+        .bind(app_file_version.path.clone())
+        .bind(app_file_version.app_description.clone())
+        .bind(app_file_version.display_version())
         .bind(Utc::now())
         .execute(&db)
         .await
         .wrap_err(format!(
             "Failed to update app path '{}' for app with id '{}'",
-            app_details.path, id
+            app_file_version.path, id
         ))
 }
 

@@ -16,17 +16,20 @@ use crate::{
     paths::{self},
 };
 
-pub async fn get_app_details(app: data::App, app_details: Option<data::FileVersion>) -> Result<data::FileVersion, Report> {
-    match app_details {
-        Some(app_details) => Ok(app_details),
-        None => search_for_app_path(app.clone()).wrap_err(format!(
-            "Failed to get app path for app '{}' using search method '{}' and search term '{}'",
+pub async fn get_app_file_version(
+    app: data::App,
+    app_file_version: Option<data::FileVersion>,
+) -> Result<data::FileVersion, Report> {
+    match app_file_version {
+        Some(app_file_version) => Ok(app_file_version),
+        None => search_for_app_file_version(app.clone()).wrap_err(format!(
+            "Failed to get app details for app '{}' using search method '{}' and search term '{}'",
             app.app_name, app.search_method, app.search_term
         )),
     }
 }
 
-fn search_for_app_path(app: data::App) -> Result<data::FileVersion, Report> {
+fn search_for_app_file_version(app: data::App) -> Result<data::FileVersion, Report> {
     let app_path = match app.search_method {
         SearchMethod::PSGetApp => Ok(get_powershell_getxapppackage(app)?),
         SearchMethod::FolderSearch => Ok(get_folder_search(app)?),
@@ -35,8 +38,8 @@ fn search_for_app_path(app: data::App) -> Result<data::FileVersion, Report> {
 
     match app_path {
         Ok(app_path) => {
-            let app_details = get_file_version(&app_path)?;
-            Ok(app_details)
+            let app_file_version = get_file_version(&app_path)?;
+            Ok(app_file_version)
         }
         Err(e) => Err(e),
     }
@@ -169,6 +172,8 @@ pub fn parse_file_version_to_i32(version: &str) -> Option<(u32, u32, u32, u32)> 
         .ok()?; // FIXME: Improve error handling?
 
     match parts.len() {
+        1 => Some((parts[0], 0, 0, 0)),
+        2 => Some((parts[0], parts[1], 0, 0)),
         3 => Some((parts[0], parts[1], parts[2], 0)),
         4 => Some((parts[0], parts[1], parts[2], parts[3])),
         _ => None,

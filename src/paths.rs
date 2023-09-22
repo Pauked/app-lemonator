@@ -355,10 +355,9 @@ mod tests {
     use std::path::PathBuf;
 
     #[cfg(target_os = "windows")]
-    use crate::paths::{get_base_folder, get_local_app_data_folder};
+    use crate::paths::{get_base_folder, get_export_file_name, get_local_app_data_folder};
     use crate::paths::{
-        get_dropbox_folder_from_json, get_export_file_name, parse_arguments, BUSINESSDROPBOX,
-        PERSONALDROPBOX,
+        get_dropbox_folder_from_json, parse_arguments, BUSINESSDROPBOX, PERSONALDROPBOX,
     };
 
     #[cfg(target_os = "windows")]
