@@ -7,6 +7,56 @@ use strum_macros::Display;
 use strum_macros::EnumString;
 use tabled::Tabled;
 
+use crate::finder;
+
+#[derive(Clone, Debug)]
+pub struct FileVersion {
+    pub app_description: String,
+    pub path: String,
+    pub major: u32,
+    pub minor: u32,
+    pub build: u32,
+    pub revision: u32,
+}
+
+impl FileVersion {
+    pub fn new(
+        app_description: String,
+        path: String,
+        version: String,
+    ) -> Self {
+        match finder::parse_file_version_to_i32(&version) {
+            Some((major, minor, build, revision)) => {
+                Self {
+                    app_description,
+                    path,
+                    major,
+                    minor,
+                    build,
+                    revision,
+                }
+            }
+            None => {
+                Self {
+                    app_description,
+                    path,
+                    major: 0,
+                    minor: 0,
+                    build: 0,
+                    revision: 0,
+                }
+            }
+        }
+    }
+
+    pub fn display_version(&self) -> String {
+        format!(
+            "{}.{}.{}.{}",
+            self.major, self.minor, self.build, self.revision
+        )
+    }
+}
+
 #[derive(
     ValueEnum, Clone, Serialize, Deserialize, Debug, Display, EnumString, PartialEq, sqlx::Type,
 )]
@@ -54,6 +104,10 @@ pub struct App {
     pub search_method: SearchMethod,
     #[tabled(rename = "App Path", display_with = "display_option_string")]
     pub app_path: Option<String>,
+    #[tabled(rename = "App Description", display_with = "display_option_string")]
+    pub app_description: Option<String>,
+    #[tabled(rename = "App Version", display_with = "display_option_string")]
+    pub app_version: Option<String>,
     #[serde(skip)]
     #[tabled(
         rename = "Last Opened",
@@ -87,6 +141,8 @@ impl App {
             search_term,
             search_method,
             app_path: None,
+            app_description: None,
+            app_version: None,
             last_opened: None,
             last_updated: None,
             operating_system,

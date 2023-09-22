@@ -6,7 +6,7 @@ use sqlx::{
     migrate::{MigrateDatabase, Migrator},
     Sqlite, SqlitePool,
 };
-use std::{fs, io};
+use std::{fs::{self}, io};
 
 const DB_URL: &str = "sqlite://sqlite.db";
 const DB_FILE: &str = "sqlite.db";
@@ -95,21 +95,24 @@ pub async fn get_apps() -> Result<Vec<data::App>, Report> {
         .wrap_err("Failed to get list of all apps")
 }
 
-pub async fn update_app_path(
+pub async fn update_app_details(
     id: i32,
-    app_path: &str,
+    app_details: &data::FileVersion,
 ) -> Result<sqlx::sqlite::SqliteQueryResult, Report> {
     let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    sqlx::query("UPDATE apps SET app_path = $1, last_updated = $2 WHERE id=$3 COLLATE NOCASE")
-        .bind(app_path)
-        .bind(Utc::now())
+    sqlx::query("UPDATE apps SET app_path = $2, app_description = $3, app_version = $4,
+     last_updated = $5 WHERE id=$1 COLLATE NOCASE")
         .bind(id)
+        .bind(app_details.path.clone())
+        .bind(app_details.app_description.clone())
+        .bind(app_details.display_version())
+        .bind(Utc::now())
         .execute(&db)
         .await
         .wrap_err(format!(
             "Failed to update app path '{}' for app with id '{}'",
-            app_path, id
+            app_details.path, id
         ))
 }
 

@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS apps
     search_term             TEXT NOT NULL,
     search_method           TEXT NOT NULL,
     app_path                TEXT NULL,
+    app_description         TEXT NULL,
+    app_version             TEXT NULL,
     last_opened             DATETIME NULL,
     last_updated            DATETIME NULL,
     operating_system        TEXT NOT NULL

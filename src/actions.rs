@@ -29,13 +29,23 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
         .await
         .wrap_err("Unable to open app".to_string())?;
 
-    let app_path = finder::get_app_path(app.clone(), app.app_path.clone())
+    let current_app_details = if let Some(app_path) = &app.app_path {
+        Some(data::FileVersion::new(
+            app.app_description.clone().unwrap_or_default(),
+            app_path.to_string(),
+            app.app_version.clone().unwrap_or_default(),
+        ))
+    } else {
+        None
+    };
+
+    let update_app_details = finder::get_app_details(app.clone(), current_app_details)
         .await
         .wrap_err("Unable to open app".to_string())?;
 
-    if paths::check_app_exists(&app_path) {
+    if paths::check_app_exists(&update_app_details.path) {
         // FIXME Move update app path to here? Should Database code be in here?
-        db::update_app_path(app.id, &app_path)
+        db::update_app_details(app.id, &update_app_details)
             .await
             .wrap_err(format!(
                 "Error updating app_path for '{}'",
@@ -45,11 +55,11 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
             "Updated app '{}' app_path from '{}' to '{}'",
             app.app_name.blue(),
             app.app_path.clone().unwrap_or_default().magenta(),
-            app_path.magenta()
+            update_app_details.path.magenta()
         );
     }
 
-    let open_result = runner::open_process(app.clone(), &app_path)
+    let open_result = runner::open_process(app.clone(), &update_app_details.path)
         .await
         .wrap_err("Unable to open app".to_string())?;
 
@@ -91,6 +101,8 @@ pub async fn add_app(
             listing
         ));
     }
+
+
 
     let new_app = data::App::new(
         app_name,
@@ -172,21 +184,21 @@ pub async fn delete_app(app_name: &str) -> Result<String, Report> {
     Ok(format!("Successfully deleted app '{}'", app_name.blue()))
 }
 
-async fn update_app_path_for_list(apps: Vec<data::App>) -> Result<String, Report> {
+async fn update_app_details_for_list(apps: Vec<data::App>) -> Result<String, Report> {
     let (success, failed) = {
         let mut success = 0;
         let mut failed = 0;
 
         for app in &apps {
             // I want this process to continue to run, even if one or more apps fail to update
-            match finder::get_app_path(app.clone(), None).await {
-                Ok(app_path) => match db::update_app_path(app.id, &app_path).await {
+            match finder::get_app_details(app.clone(), None).await {
+                Ok(app_details) => match db::update_app_details(app.id, &app_details).await {
                     Ok(_) => {
                         info!(
                             "Updated app '{}' app_path from '{}' to '{}'",
                             app.app_name.blue(),
                             app.app_path.clone().unwrap_or_default().magenta(),
-                            app_path.magenta()
+                            app_details.path.magenta()
                         );
                         success += 1;
                     }
@@ -247,7 +259,7 @@ pub async fn update_app(app_name: Option<String>, force: bool) -> Result<String,
         }
     };
 
-    update_app_path_for_list(apps)
+    update_app_details_for_list(apps)
         .await
         .wrap_err("Unable to update app path")
 }
