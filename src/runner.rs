@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{ffi::OsStr, process::Command};
 
 use colored::Colorize;
 use eyre::Context;
@@ -23,22 +23,36 @@ pub async fn open_process(app: data::App, app_path: &str) -> Result<String, eyre
         ));
     }
 
-    let mut flattened_params = String::new();
-    if let Some(app_params) = app.params {
-        let args = paths::parse_arguments(&app_params);
-        flattened_params = format!(" with params '{}'", args.join(" ").magenta());
+    // Add in additional arguments
+    add_arguments_to_command(&mut cmd, app.params);
 
-        for arg in args {
-            cmd.arg(arg);
-        }
-    }
+    // Run the app
     cmd.spawn()
         .wrap_err(format!("Failed to open '{}'", &app.app_name))?;
 
     Ok(format!(
-        "Successfully opened '{}' in '{}'{}",
+        "Successfully opened '{}' from '{}'{}",
         &app.app_name.blue(),
         &app_path.magenta(),
-        flattened_params
+        get_display_args(&cmd)
     ))
+}
+
+fn get_display_args(cmd: &Command) -> String {
+    let cmd_args: Vec<&OsStr> = cmd.get_args().collect();
+    let result: String = cmd_args
+        .iter()
+        .filter_map(|s| s.to_str()) // Convert each &OsStr to Option<&str>
+        .collect::<Vec<_>>() // Collect to Vec<&str>
+        .join(" ");
+    format!(" with params '{}'", result.magenta())
+}
+
+fn add_arguments_to_command(cmd: &mut Command, additional_arguments: Option<String>) {
+    if let Some(additional_arguments_unwrapped) = additional_arguments {
+        let args = paths::parse_arguments(&additional_arguments_unwrapped);
+        for arg in args {
+            cmd.arg(arg);
+        }
+    }
 }

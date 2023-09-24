@@ -18,3 +18,4 @@ sqlite.db
 sqlite.db-shm
 sqlite.db-wal
 dev-export-test.json
+.idea/

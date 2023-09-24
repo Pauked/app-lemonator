@@ -39,9 +39,10 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
         None
     };
 
-    let update_app_file_version = finder::get_app_file_version(app.clone(), current_app_file_version)
-        .await
-        .wrap_err("Unable to open app".to_string())?;
+    let update_app_file_version =
+        finder::get_app_file_version(app.clone(), current_app_file_version)
+            .await
+            .wrap_err("Unable to open app".to_string())?;
 
     if paths::check_app_exists(&update_app_file_version.path) {
         // FIXME Move update app path to here? Should Database code be in here?
@@ -101,8 +102,6 @@ pub async fn add_app(
             listing
         ));
     }
-
-
 
     let new_app = data::App::new(
         app_name,
@@ -192,24 +191,26 @@ async fn update_app_file_version_for_list(apps: Vec<data::App>) -> Result<String
         for app in &apps {
             // I want this process to continue to run, even if one or more apps fail to update
             match finder::get_app_file_version(app.clone(), None).await {
-                Ok(app_file_version) => match db::update_app_file_version(app.id, &app_file_version).await {
-                    Ok(_) => {
-                        info!(
-                            "Updated app '{}' app_path from '{}' to '{}'",
-                            app.app_name.blue(),
-                            app.app_path.clone().unwrap_or_default().magenta(),
-                            app_file_version.path.magenta()
-                        );
-                        success += 1;
+                Ok(app_file_version) => {
+                    match db::update_app_file_version(app.id, &app_file_version).await {
+                        Ok(_) => {
+                            info!(
+                                "Updated app '{}' app_path from '{}' to '{}'",
+                                app.app_name.blue(),
+                                app.app_path.clone().unwrap_or_default().magenta(),
+                                app_file_version.path.magenta()
+                            );
+                            success += 1;
+                        }
+                        Err(error) => {
+                            error!(
+                                "Error updating app path for '{}': {:?}",
+                                app.app_name, error
+                            );
+                            failed += 1;
+                        }
                     }
-                    Err(error) => {
-                        error!(
-                            "Error updating app path for '{}': {:?}",
-                            app.app_name, error
-                        );
-                        failed += 1;
-                    }
-                },
+                }
                 Err(error) => {
                     error!("Error getting app path for '{}': {:?}", app.app_name, error);
                     failed += 1;
@@ -222,7 +223,11 @@ async fn update_app_file_version_for_list(apps: Vec<data::App>) -> Result<String
 
     let message = {
         if success == apps.len() {
-            "All apps updated successfully".green().to_string()
+            if success == 1 {
+                "Successfully updated app".green().to_string()
+            } else {
+                "Successfully updated all apps".green().to_string()
+            }
         } else {
             format!(
                 "{}\n{}",

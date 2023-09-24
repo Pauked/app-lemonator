@@ -1,6 +1,7 @@
 use std::{
     env,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use chrono::Local;
@@ -10,15 +11,35 @@ use log::{debug, error};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
+use strum_macros::{Display, EnumString};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::constants;
 
-const ROAMINGAPPDATA: &str = "appdata";
-const LOCALAPPDATA: &str = "localappdata";
-const PERSONALDROPBOX: &str = "personaldropbox";
-const BUSINESSDROPBOX: &str = "businessdropbox";
+#[derive(Display, EnumString)]
+pub enum BaseFolderType {
+    #[strum(serialize = "appdata")]
+    LocalAppData,
+    #[strum(serialize = "localappdata")]
+    RoamingAppData,
+    #[strum(serialize = "personaldropbox")]
+    PersonalDropbox,
+    #[strum(serialize = "businessdropbox")]
+    BusinessDropbox,
+    #[strum(serialize = "programfiles")]
+    ProgramFiles,
+    #[strum(serialize = "programfiles(x86)")]
+    ProgramFilesX86,
+    #[strum(serialize = "windir")]
+    WinDir,
+    #[strum(serialize = "systemroot")]
+    SystemRoot,
+    #[strum(serialize = "homepath")]
+    HomePath,
+    #[strum(serialize = "temp")]
+    Temp,
+}
 
 pub fn get_current_exe() -> String {
     let exe_result = env::current_exe();
@@ -175,28 +196,31 @@ pub fn get_temp_dir() -> String {
     temp_dir.display().to_string()
 }
 
-fn get_environment_folder(name: &str) -> String {
-    if let Ok(appdata) = env::var(name) {
+fn get_environment_folder(base_folder_type: BaseFolderType) -> String {
+    if let Ok(appdata) = env::var(base_folder_type.to_string()) {
         let appdata_path = std::path::Path::new(&appdata);
         debug!(
             "Environment '{}' returns folder: '{}'",
-            name,
+            base_folder_type.to_string(),
             appdata_path.display()
         );
         return appdata_path.display().to_string();
     } else {
-        error!("Failed to retrieve environment '{}' folder.", name);
+        error!(
+            "Failed to retrieve environment '{}' folder.",
+            base_folder_type
+        );
     }
 
     String::from("")
 }
 
 pub fn get_roaming_app_data_folder() -> String {
-    get_environment_folder(ROAMINGAPPDATA)
+    get_environment_folder(BaseFolderType::RoamingAppData)
 }
 
 pub fn get_local_app_data_folder() -> String {
-    get_environment_folder(LOCALAPPDATA)
+    get_environment_folder(BaseFolderType::LocalAppData)
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -213,7 +237,7 @@ struct DropboxInfo {
     //subscription_type: String,
 }
 
-fn get_dropbox_folder(tag: &str) -> String {
+fn get_dropbox_folder(base_folder_type: BaseFolderType) -> String {
     // https://help.dropbox.com/installs/locate-dropbox-folder
 
     let mut dropbox_config_path = String::new();
@@ -251,10 +275,14 @@ fn get_dropbox_folder(tag: &str) -> String {
     let json = std::fs::read_to_string(&dropbox_config_path).unwrap();
     debug!("Dropbox config JSON: '{}'", &json);
 
-    get_dropbox_folder_from_json(tag, &dropbox_config_path, &json)
+    get_dropbox_folder_from_json(base_folder_type, &dropbox_config_path, &json)
 }
 
-fn get_dropbox_folder_from_json(tag: &str, dropbox_config_path: &str, json: &str) -> String {
+fn get_dropbox_folder_from_json(
+    base_folder_type: BaseFolderType,
+    dropbox_config_path: &str,
+    json: &str,
+) -> String {
     // Deserialize the JSON data into the Rust struct
     let dropbox_config: DropboxConfig = match from_str(json) {
         Ok(config) => config,
@@ -267,13 +295,19 @@ fn get_dropbox_folder_from_json(tag: &str, dropbox_config_path: &str, json: &str
         }
     };
 
-    if tag == PERSONALDROPBOX {
-        if let Some(personal) = dropbox_config.personal {
-            return personal.path;
+    match base_folder_type {
+        BaseFolderType::PersonalDropbox => {
+            if let Some(personal) = dropbox_config.personal {
+                return personal.path;
+            }
         }
-    } else if tag == BUSINESSDROPBOX {
-        if let Some(business) = dropbox_config.business {
-            return business.path;
+        BaseFolderType::BusinessDropbox => {
+            if let Some(business) = dropbox_config.business {
+                return business.path;
+            }
+        }
+        _ => {
+            error!("Unknown base folder type: '{}'", base_folder_type);
         }
     }
 
@@ -292,21 +326,31 @@ pub fn get_base_folder(source_folder: &str) -> String {
         let mut env_var_value = String::new();
         debug!("  Found path variable: '{}'", captured_value);
 
-        match captured_value.to_lowercase().as_str() {
-            LOCALAPPDATA => {
-                env_var_value = get_local_app_data_folder();
-            }
-            ROAMINGAPPDATA => {
-                env_var_value = get_roaming_app_data_folder();
-            }
-            PERSONALDROPBOX => {
-                env_var_value = get_dropbox_folder(PERSONALDROPBOX);
-            }
-            BUSINESSDROPBOX => {
-                env_var_value = get_dropbox_folder(BUSINESSDROPBOX);
-            }
-            _ => {
-                error!("Unknown path variable: '{}'", captured_value);
+        let base_folder_type_result =
+            BaseFolderType::from_str(captured_value.to_lowercase().as_str());
+
+        match base_folder_type_result {
+            Ok(base_folder_type) => match base_folder_type {
+                BaseFolderType::LocalAppData => {
+                    env_var_value = get_local_app_data_folder();
+                }
+                BaseFolderType::RoamingAppData => {
+                    env_var_value = get_roaming_app_data_folder();
+                }
+                BaseFolderType::PersonalDropbox | BaseFolderType::BusinessDropbox => {
+                    env_var_value = get_dropbox_folder(base_folder_type);
+                }
+                BaseFolderType::ProgramFiles
+                | BaseFolderType::ProgramFilesX86
+                | BaseFolderType::WinDir
+                | BaseFolderType::SystemRoot
+                | BaseFolderType::HomePath
+                | BaseFolderType::Temp => {
+                    env_var_value = get_environment_folder(base_folder_type);
+                }
+            },
+            Err(e) => {
+                error!("Unknown path variable: '{}', error: {}", captured_value, e);
             }
         }
         output = re
@@ -320,33 +364,8 @@ pub fn get_base_folder(source_folder: &str) -> String {
 }
 
 pub fn parse_arguments(input: &str) -> Vec<String> {
-    let mut args: Vec<String> = Vec::new();
-    let mut current_arg = String::new();
-    let mut inside_quotes = false;
-
-    for c in input.chars() {
-        match c {
-            ' ' if !inside_quotes => {
-                if !current_arg.is_empty() {
-                    args.push(current_arg.clone());
-                    current_arg.clear();
-                }
-            }
-            '"' => {
-                inside_quotes = !inside_quotes;
-                //current_arg.push(c);
-            }
-            _ => {
-                current_arg.push(c);
-            }
-        }
-    }
-
-    if !current_arg.is_empty() {
-        args.push(current_arg);
-    }
-
-    args
+    let escaped_arguments = input.replace('\\', r"\\");
+    shlex::split(&escaped_arguments).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -356,15 +375,13 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     use crate::paths::{get_base_folder, get_export_file_name, get_local_app_data_folder};
-    use crate::paths::{
-        get_dropbox_folder_from_json, parse_arguments, BUSINESSDROPBOX, PERSONALDROPBOX,
-    };
+    use crate::paths::{get_dropbox_folder_from_json, parse_arguments, BaseFolderType};
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn check_local_app_data_folder() {
+    fn check_roaming_app_data_folder() {
         // Arrange
-        let source_path = r"%localappdata%\JetBrains";
+        let source_path = r"%appdata%\JetBrains";
         let mut file_path = PathBuf::from(get_local_app_data_folder());
         file_path.push("JetBrains");
         let expected = file_path.display().to_string();
@@ -398,8 +415,10 @@ mod tests {
 }"#;
 
         // Act
-        let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);
-        let actual_business = get_dropbox_folder_from_json(BUSINESSDROPBOX, "test", json_data);
+        let actual_personal =
+            get_dropbox_folder_from_json(BaseFolderType::PersonalDropbox, "test", json_data);
+        let actual_business =
+            get_dropbox_folder_from_json(BaseFolderType::BusinessDropbox, "test", json_data);
 
         // Assert
         assert_eq!(actual_personal, expected_personal);
@@ -422,8 +441,10 @@ mod tests {
 }"#;
 
         // Act
-        let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);
-        let actual_business = get_dropbox_folder_from_json(BUSINESSDROPBOX, "test", json_data);
+        let actual_personal =
+            get_dropbox_folder_from_json(BaseFolderType::PersonalDropbox, "test", json_data);
+        let actual_business =
+            get_dropbox_folder_from_json(BaseFolderType::BusinessDropbox, "test", json_data);
 
         // Assert
         assert_eq!(actual_personal, expected_personal);
@@ -446,8 +467,10 @@ mod tests {
 }"#;
 
         // Act
-        let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);
-        let actual_business = get_dropbox_folder_from_json(BUSINESSDROPBOX, "test", json_data);
+        let actual_personal =
+            get_dropbox_folder_from_json(BaseFolderType::PersonalDropbox, "test", json_data);
+        let actual_business =
+            get_dropbox_folder_from_json(BaseFolderType::BusinessDropbox, "test", json_data);
 
         // Assert
         assert_eq!(actual_personal, expected_personal);
@@ -462,8 +485,10 @@ mod tests {
         let json_data = r#" { }"#;
 
         // Act
-        let actual_personal = get_dropbox_folder_from_json(PERSONALDROPBOX, "test", json_data);
-        let actual_business = get_dropbox_folder_from_json(BUSINESSDROPBOX, "test", json_data);
+        let actual_personal =
+            get_dropbox_folder_from_json(BaseFolderType::PersonalDropbox, "test", json_data);
+        let actual_business =
+            get_dropbox_folder_from_json(BaseFolderType::BusinessDropbox, "test", json_data);
 
         // Assert
         assert_eq!(actual_personal, expected_personal);
@@ -490,6 +515,22 @@ mod tests {
     fn parse_arguments_chrome_profile_1() {
         // Arrange
         let input = r#" --args --profile-directory="Profile 1""#;
+        let expected = vec![
+            "--args".to_string(),
+            "--profile-directory=Profile 1".to_string(),
+        ];
+
+        // Act
+        let actual = parse_arguments(input);
+
+        // Assert
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn parse_arguments_chrome_profile_1_alt() {
+        // Arrange
+        let input = r#" --args --profile-directory='Profile 1'"#;
         let expected = vec![
             "--args".to_string(),
             "--profile-directory=Profile 1".to_string(),
