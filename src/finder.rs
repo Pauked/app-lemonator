@@ -292,6 +292,8 @@ fn get_folder_search(app: data::App) -> Result<String, Report> {
             }
         }
 
+        // TODO: Add comparison to existing app version, if available!
+
         // Now found the highest versioned file
         let highest_version = file_versions
             .iter()
