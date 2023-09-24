@@ -17,5 +17,5 @@ Cargo.lock
 sqlite.db
 sqlite.db-shm
 sqlite.db-wal
-dev-export-test.json
+test-export.json
 .idea/
