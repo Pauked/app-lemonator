@@ -20,13 +20,12 @@ pub enum ListType {
     Summary,
 }
 
-pub async fn create_db() -> Result<bool, Report> {
-    db::create_db().await
+pub fn create_db() -> Result<bool, Report> {
+    db::create_db()
 }
 
-pub async fn open_app(app_name: &str) -> Result<String, Report> {
+pub fn open_app(app_name: &str) -> Result<String, Report> {
     let app = db::get_app(app_name)
-        .await
         .wrap_err("Unable to open app".to_string())?;
 
     let current_app_file_version = if let Some(app_path) = &app.app_path {
@@ -41,13 +40,11 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
 
     let update_app_file_version =
         finder::get_app_file_version(app.clone(), current_app_file_version)
-            .await
             .wrap_err("Unable to open app".to_string())?;
 
     if paths::check_app_exists(&update_app_file_version.path) {
         // FIXME Move update app path to here? Should Database code be in here?
         db::update_app_file_version(app.id, &update_app_file_version)
-            .await
             .wrap_err(format!(
                 "Error updating app_path for '{}'",
                 app.app_name.blue(),
@@ -61,11 +58,10 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
     }
 
     let open_result = runner::open_process(app.clone(), &update_app_file_version.path)
-        .await
         .wrap_err("Unable to open app".to_string())?;
 
     // FIXME: db::update_last_opened(app.id).await
-    match db::update_last_opened(app.id).await {
+    match db::update_last_opened(app.id) {
         Ok(_) => {
             debug!("Updated last_opened for app '{}'", app.app_name.blue());
         }
@@ -81,7 +77,7 @@ pub async fn open_app(app_name: &str) -> Result<String, Report> {
     Ok(open_result)
 }
 
-pub async fn add_app(
+pub fn add_app(
     app_name: String,
     exe_name: String,
     params: Option<String>,
@@ -90,8 +86,8 @@ pub async fn add_app(
     operating_system: data::OperatingSystem,
 ) -> Result<String, Report> {
     // If the app already exists, this is "OK". Report back the details of what is stored.
-    if (db::get_app(&app_name).await).is_ok() {
-        let listing = match list_app(Some(app_name.clone()), ListType::Summary).await {
+    if (db::get_app(&app_name)).is_ok() {
+        let listing = match list_app(Some(app_name.clone()), ListType::Summary) {
             Ok(output) => output,
             Err(_) => "Unable to get listing".to_string(),
         };
@@ -120,17 +116,15 @@ pub async fn add_app(
     }
 
     db::add_app(&new_app)
-        .await
         .wrap_err("Error adding app".to_string())?;
 
     let app = db::get_app(&new_app.app_name)
-        .await
         .wrap_err("Error adding app, error retrieving details after save")?;
 
     Ok(format!("Successfully added {}", app.to_description()))
 }
 
-pub async fn edit_app(
+pub fn edit_app(
     lookup_app_name: String,
     app_name: Option<String>,
     exe_name: Option<String>,
@@ -139,7 +133,6 @@ pub async fn edit_app(
     search_method: Option<data::SearchMethod>,
 ) -> Result<String, Report> {
     let mut app = db::get_app(&lookup_app_name)
-        .await
         .wrap_err("Unable to edit app".to_string())?;
 
     debug!(
@@ -166,33 +159,32 @@ pub async fn edit_app(
     }
 
     db::edit_app(&lookup_app_name, &app)
-        .await
         .wrap_err("Unable to edit app".to_string())?;
 
     Ok(format!("Successfully edited {}", app.to_description()))
 }
 
-pub async fn delete_app(app_name: &str) -> Result<String, Report> {
-    if (db::get_app(app_name).await).is_err() {
+pub fn delete_app(app_name: &str) -> Result<String, Report> {
+    if (db::get_app(app_name)).is_err() {
         return Ok(format!(
             "App '{}' does not exist, so cannot be deleted",
             app_name.blue()
         ));
     }
-    db::delete_app(app_name).await?;
+    db::delete_app(app_name)?;
     Ok(format!("Successfully deleted app '{}'", app_name.blue()))
 }
 
-async fn update_app_file_version_for_list(apps: Vec<data::App>) -> Result<String, Report> {
+fn update_app_file_version_for_list(apps: Vec<data::App>) -> Result<String, Report> {
     let (success, failed) = {
         let mut success = 0;
         let mut failed = 0;
 
         for app in &apps {
             // I want this process to continue to run, even if one or more apps fail to update
-            match finder::get_app_file_version(app.clone(), None).await {
+            match finder::get_app_file_version(app.clone(), None) {
                 Ok(app_file_version) => {
-                    match db::update_app_file_version(app.id, &app_file_version).await {
+                    match db::update_app_file_version(app.id, &app_file_version) {
                         Ok(_) => {
                             info!(
                                 "Updated app '{}' app_path from '{}' to '{}'",
@@ -239,11 +231,10 @@ async fn update_app_file_version_for_list(apps: Vec<data::App>) -> Result<String
     Ok(message)
 }
 
-pub async fn update_app(app_name: Option<String>, force: bool) -> Result<String, Report> {
+pub fn update_app(app_name: Option<String>, force: bool) -> Result<String, Report> {
     let apps = match app_name {
         Some(app_name) => {
             vec![db::get_app(&app_name)
-                .await
                 .wrap_err("Unable to update app path for selected app".to_string())?]
         }
         None => {
@@ -259,21 +250,18 @@ pub async fn update_app(app_name: Option<String>, force: bool) -> Result<String,
             }
 
             db::get_apps()
-                .await
                 .wrap_err("Unable to update app path for all apps".to_string())?
         }
     };
 
     update_app_file_version_for_list(apps)
-        .await
         .wrap_err("Unable to update app path")
 }
 
-pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<String, Report> {
+pub fn list_app(app_name: Option<String>, list_type: ListType) -> Result<String, Report> {
     match app_name {
         Some(app_name) => {
             let app = db::get_app(&app_name)
-                .await
                 .wrap_err("Unable to generate app listing".to_string())?;
             Ok(format!(
                 "\n{}",
@@ -282,7 +270,6 @@ pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<S
         }
         None => {
             let apps = db::get_apps()
-                .await
                 .wrap_err("Unable to generate app listing".to_string())?;
 
             if apps.is_empty() {
@@ -318,8 +305,8 @@ pub async fn list_app(app_name: Option<String>, list_type: ListType) -> Result<S
     }
 }
 
-pub async fn reset(force: bool) -> Result<String, Report> {
-    if !db::database_exists().await {
+pub fn reset(force: bool) -> Result<String, Report> {
+    if !db::database_exists() {
         return Ok("Database does not exist, nothing to reset.".to_string());
     }
 
@@ -337,9 +324,8 @@ pub async fn reset(force: bool) -> Result<String, Report> {
     }
 }
 
-pub async fn export(file_out: Option<String>, force: bool) -> Result<String, Report> {
+pub fn export(file_out: Option<String>, force: bool) -> Result<String, Report> {
     let apps = db::get_apps()
-        .await
         .wrap_err("Unable to export".to_string())?;
 
     let file_checked: String = match file_out {
@@ -382,7 +368,7 @@ pub async fn export(file_out: Option<String>, force: bool) -> Result<String, Rep
     ))
 }
 
-pub async fn import(file_in: String) -> Result<String, Report> {
+pub fn import(file_in: String) -> Result<String, Report> {
     let file = File::open(&file_in).wrap_err(format!(
         "Unable to import, error opening file '{}'",
         file_in
@@ -409,11 +395,11 @@ pub async fn import(file_in: String) -> Result<String, Report> {
             continue;
         }
 
-        if (db::get_app(&app.app_name).await).is_ok() {
+        if (db::get_app(&app.app_name)).is_ok() {
             info!("Skipped app '{}', already exists", app.app_name.blue());
             skipped += 1;
         } else {
-            match db::add_app(app).await {
+            match db::add_app(app) {
                 Ok(_) => {
                     info!("Successfully added {}", app.to_description());
                     success += 1;

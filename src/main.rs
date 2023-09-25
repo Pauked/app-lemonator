@@ -12,8 +12,7 @@ mod log_config;
 mod paths;
 mod runner;
 
-#[tokio::main]
-async fn run() -> eyre::Result<String> {
+fn run() -> eyre::Result<String> {
     color_eyre::install()?;
     log_config::init_log(constants::APP_NAME);
     // This line is intentionally blank... so I can see new runs in the log file
@@ -28,7 +27,7 @@ async fn run() -> eyre::Result<String> {
     let args = cli::Args::parse();
     log::debug!("Args {:?}", args);
 
-    let cli_result = cli::run_cli_action(args).await?;
+    let cli_result = cli::run_cli_action(args)?;
     Ok(cli_result)
 }
 

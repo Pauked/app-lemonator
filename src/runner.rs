@@ -5,7 +5,7 @@ use eyre::Context;
 
 use crate::{data, paths};
 
-pub async fn open_process(app: data::App, app_path: &str) -> Result<String, eyre::Report> {
+pub fn open_process(app: data::App, app_path: &str) -> Result<String, eyre::Report> {
     #[cfg(target_os = "macos")]
     let mut cmd = Command::new("open");
     #[cfg(target_os = "macos")]

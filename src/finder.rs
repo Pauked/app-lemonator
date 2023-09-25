@@ -16,7 +16,7 @@ use crate::{
     paths::{self},
 };
 
-pub async fn get_app_file_version(
+pub fn get_app_file_version(
     app: data::App,
     app_file_version: Option<data::FileVersion>,
 ) -> Result<data::FileVersion, Report> {

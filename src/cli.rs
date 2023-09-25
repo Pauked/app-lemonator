@@ -115,17 +115,17 @@ pub enum Action {
     },
 }
 
-pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
+pub fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
     // If we are not resetting the database, make sure it exists and is ready to use
     match args.action {
         Action::Reset { force: _ } => {}
         _ => {
-            actions::create_db().await?;
+            actions::create_db()?;
         }
     }
 
     match args.action {
-        Action::Open { app_name } => Ok(actions::open_app(&app_name).await?),
+        Action::Open { app_name } => Ok(actions::open_app(&app_name)?),
         Action::Add {
             app_name,
             exe_name,
@@ -139,8 +139,7 @@ pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
             search_term,
             search_method,
             get_operating_system(),
-        )
-        .await?),
+        )?),
         Action::Edit {
             lookup_app_name,
             app_name,
@@ -155,23 +154,22 @@ pub async fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
             params.map(|p| p.join(" ")),
             search_term,
             search_method,
-        )
-        .await?),
-        Action::Delete { app_name } => Ok(actions::delete_app(&app_name).await?),
-        Action::Update { app_name, force } => Ok(actions::update_app(app_name, force).await?),
+        )?),
+        Action::Delete { app_name } => Ok(actions::delete_app(&app_name)?),
+        Action::Update { app_name, force } => Ok(actions::update_app(app_name, force)?),
         Action::List { app_name, full } => {
             let list_type = match full {
                 true => actions::ListType::Full,
                 false => actions::ListType::Summary,
             };
-            Ok(actions::list_app(app_name, list_type).await?)
+            Ok(actions::list_app(app_name, list_type)?)
         }
-        Action::Reset { force } => Ok(actions::reset(force).await?),
+        Action::Reset { force } => Ok(actions::reset(force)?),
         Action::Export {
             file_out: file,
             force,
-        } => Ok(actions::export(file, force).await?),
-        Action::Import { file_in: file } => Ok(actions::import(file).await?),
+        } => Ok(actions::export(file, force)?),
+        Action::Import { file_in: file } => Ok(actions::import(file)?),
     }
 }
 

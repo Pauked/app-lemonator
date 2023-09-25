@@ -6,9 +6,10 @@ App principles / Defense of Design
 - Give clear error messages.
 
 ## TODO
-[ ] Store File Version and File Description
+[x] Push async code into db.rs
+[/] Store File Version and File Description
 [ ] Add method to update last run path periodically (or after each run?).
-[ ] MacOS file version checking!
+[/] MacOS file version checking!
 [ ] Add abort to folder_search
 [ ] Add abort to update "all"
 [ ] Add GitHub action to build for Windows and MacOS and create releases.
