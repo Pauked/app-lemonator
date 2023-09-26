@@ -7,7 +7,8 @@ App principles / Defense of Design
 
 ## TODO
 [x] Push async code into db.rs
-[/] Store File Version and File Description
+[/] Store File Version and File Description (can't read Windows file info easily)
+[ ] Use saved File Version in search
 [ ] Add method to update last run path periodically (or after each run?).
 [/] MacOS file version checking!
 [ ] Add abort to folder_search

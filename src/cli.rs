@@ -18,11 +18,11 @@ pub struct Args {
 #[derive(Parser, Debug, PartialEq)]
 pub enum Action {
     /// Opens an app.
-    #[clap(short_flag = 'o', long_flag = "open")]
+    #[clap(short_flag = 'o')]
     Open { app_name: String },
 
     /// Adds an app to the database.
-    #[clap(short_flag = 'a', long_flag = "add")]
+    #[clap(short_flag = 'a')]
     Add {
         /// Nice name for app.
         app_name: String,
@@ -39,7 +39,7 @@ pub enum Action {
     },
 
     /// Edits individual properties of an app in the database.
-    #[clap(short_flag = 'e', long_flag = "edit")]
+    #[clap(short_flag = 'e')]
     Edit {
         /// Look up on nice name of app to edit.
         #[arg(requires = "edit")]
@@ -63,11 +63,11 @@ pub enum Action {
     },
 
     /// Deletes the app from the database.
-    #[clap(short_flag = 'd', long_flag = "delete")]
+    #[clap(short_flag = 'd')]
     Delete { app_name: String },
 
     /// Update the running folder for selected apps. No app named means all in database.
-    #[clap(short_flag = 'u', long_flag = "update")]
+    #[clap(short_flag = 'u')]
     Update {
         /// App name to update.
         app_name: Option<String>,
@@ -78,7 +78,7 @@ pub enum Action {
     },
 
     /// Lists all apps in the database.
-    #[clap(short_flag = 'l', long_flag = "list")]
+    #[clap(short_flag = 'l')]
     List {
         /// Individual app name to list.
         app_name: Option<String>,
@@ -89,7 +89,7 @@ pub enum Action {
     },
 
     /// Resets the database.
-    #[clap(short_flag = 'r', long_flag = "reset")]
+    #[clap(short_flag = 'r')]
     Reset {
         /// Force database reset and skip confirmation prompt.
         #[arg(long, default_value = "false")]
@@ -97,7 +97,7 @@ pub enum Action {
     },
 
     /// Exports the database to a JSON file.
-    #[clap(short_flag = 'x', long_flag = "export")]
+    #[clap(short_flag = 'x')]
     Export {
         /// File name to export to. Can be left blank, app will save to Documents folder.
         file_out: Option<String>,
@@ -108,7 +108,7 @@ pub enum Action {
     },
 
     /// Imports a JSON file to the database. Existing records will be skipped.
-    #[clap(short_flag = 'i', long_flag = "import")]
+    #[clap(short_flag = 'i')]
     Import {
         /// File name to import from.
         file_in: String,
