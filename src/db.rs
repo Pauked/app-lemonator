@@ -11,8 +11,8 @@ use std::{
     io,
 };
 
-const DB_URL: &str = "sqlite://sqlite.db";
-const DB_FILE: &str = "sqlite.db";
+const DB_URL: &str = "sqlite://app-lemonator.db";
+const DB_FILE: &str = "app-lemonator.db";
 
 static MIGRATOR: Migrator = sqlx::migrate!(); // this will pick up migrations from the ./migrations directory
 

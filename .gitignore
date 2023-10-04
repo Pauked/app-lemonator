@@ -13,9 +13,10 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+# Additional files and folders
 /target
-sqlite.db
-sqlite.db-shm
-sqlite.db-wal
 test-export.json
 .idea/
+app-lemonator.db
+app-lemonator.db-shm
+app-lemonator.db-wal
