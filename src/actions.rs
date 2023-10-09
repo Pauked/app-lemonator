@@ -24,9 +24,8 @@ pub fn create_db() -> Result<bool, Report> {
     db::create_db()
 }
 
-pub fn open_app(app_name: &str) -> Result<String, Report> {
-    let app = db::get_app(app_name)
-        .wrap_err("Unable to open app".to_string())?;
+pub fn open_app(app_name: &str, always_update: bool) -> Result<String, Report> {
+    let app = db::get_app(app_name).wrap_err("Unable to open app".to_string())?;
 
     let current_app_file_version = if let Some(app_path) = &app.app_path {
         Some(data::FileVersion::new(
@@ -38,17 +37,20 @@ pub fn open_app(app_name: &str) -> Result<String, Report> {
         None
     };
 
-    let update_app_file_version =
+    let update_app_file_version = if always_update {
+        finder::get_app_file_version(app.clone(), None)
+            .wrap_err("Unable to open app".to_string())?
+    } else {
         finder::get_app_file_version(app.clone(), current_app_file_version)
-            .wrap_err("Unable to open app".to_string())?;
+            .wrap_err("Unable to open app".to_string())?
+    };
 
     if paths::check_app_exists(&update_app_file_version.path) {
         // FIXME Move update app path to here? Should Database code be in here?
-        db::update_app_file_version(app.id, &update_app_file_version)
-            .wrap_err(format!(
-                "Error updating app_path for '{}'",
-                app.app_name.blue(),
-            ))?;
+        db::update_app_file_version(app.id, &update_app_file_version).wrap_err(format!(
+            "Error updating app_path for '{}'",
+            app.app_name.blue(),
+        ))?;
         debug!(
             "Updated app '{}' app_path from '{}' to '{}'",
             app.app_name.blue(),
@@ -115,8 +117,7 @@ pub fn add_app(
         ));
     }
 
-    db::add_app(&new_app)
-        .wrap_err("Error adding app".to_string())?;
+    db::add_app(&new_app).wrap_err("Error adding app".to_string())?;
 
     let app = db::get_app(&new_app.app_name)
         .wrap_err("Error adding app, error retrieving details after save")?;
@@ -132,8 +133,7 @@ pub fn edit_app(
     search_term: Option<String>,
     search_method: Option<data::SearchMethod>,
 ) -> Result<String, Report> {
-    let mut app = db::get_app(&lookup_app_name)
-        .wrap_err("Unable to edit app".to_string())?;
+    let mut app = db::get_app(&lookup_app_name).wrap_err("Unable to edit app".to_string())?;
 
     debug!(
         "Before editing - lookup app name '{}', app record '{:?}'",
@@ -158,8 +158,7 @@ pub fn edit_app(
         ));
     }
 
-    db::edit_app(&lookup_app_name, &app)
-        .wrap_err("Unable to edit app".to_string())?;
+    db::edit_app(&lookup_app_name, &app).wrap_err("Unable to edit app".to_string())?;
 
     Ok(format!("Successfully edited {}", app.to_description()))
 }
@@ -249,28 +248,25 @@ pub fn update_app(app_name: Option<String>, force: bool) -> Result<String, Repor
                 return Ok("Aborted app path update".to_string());
             }
 
-            db::get_apps()
-                .wrap_err("Unable to update app path for all apps".to_string())?
+            db::get_apps().wrap_err("Unable to update app path for all apps".to_string())?
         }
     };
 
-    update_app_file_version_for_list(apps)
-        .wrap_err("Unable to update app path")
+    update_app_file_version_for_list(apps).wrap_err("Unable to update app path")
 }
 
 pub fn list_app(app_name: Option<String>, list_type: ListType) -> Result<String, Report> {
     match app_name {
         Some(app_name) => {
-            let app = db::get_app(&app_name)
-                .wrap_err("Unable to generate app listing".to_string())?;
+            let app =
+                db::get_app(&app_name).wrap_err("Unable to generate app listing".to_string())?;
             Ok(format!(
                 "\n{}",
                 tabled::Table::new(vec![app]).with(Style::modern())
             ))
         }
         None => {
-            let apps = db::get_apps()
-                .wrap_err("Unable to generate app listing".to_string())?;
+            let apps = db::get_apps().wrap_err("Unable to generate app listing".to_string())?;
 
             if apps.is_empty() {
                 return Ok("No apps to list.".to_string());
@@ -325,8 +321,7 @@ pub fn reset(force: bool) -> Result<String, Report> {
 }
 
 pub fn export(file_out: Option<String>, force: bool) -> Result<String, Report> {
-    let apps = db::get_apps()
-        .wrap_err("Unable to export".to_string())?;
+    let apps = db::get_apps().wrap_err("Unable to export".to_string())?;
 
     let file_checked: String = match file_out {
         Some(file) => file,

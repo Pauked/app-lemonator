@@ -6,10 +6,14 @@ use crate::actions;
 use crate::constants;
 use crate::data;
 
-// https://github.com/clap-rs/clap/blob/master/examples/git-derive.rs
-// https://github.com/glotlabs/gdrive/blob/main/src/main.rs
 #[derive(Parser, Debug, PartialEq)]
-#[clap(about, author, name = constants::CRATE_NAME, version)]
+#[command(name = constants::CRATE_NAME)]
+#[command(author = constants::CRATE_AUTHORS)]
+#[command(version = constants::CRATE_VERSION)]
+#[command(
+    help_template = "{about-section}Version : {version}\nAuthor  : {author} \n\n{usage-heading} {usage} \n\n{all-args} {tab}"
+)]
+#[command(about, long_about = None)]
 pub struct Args {
     #[command(subcommand)]
     pub action: Action,
@@ -19,7 +23,13 @@ pub struct Args {
 pub enum Action {
     /// Opens an app.
     #[clap(short_flag = 'o')]
-    Open { app_name: String },
+    Open {
+        /// Name of app to open.
+        app_name: String,
+        /// Will always attempt to update the app path before opening. Handy for apps that have regular updates.
+        #[arg(long, default_value = "false")]
+        always_update: bool,
+    },
 
     /// Adds an app to the database.
     #[clap(short_flag = 'a')]
@@ -125,7 +135,10 @@ pub fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
     }
 
     match args.action {
-        Action::Open { app_name } => Ok(actions::open_app(&app_name)?),
+        Action::Open {
+            app_name,
+            always_update,
+        } => Ok(actions::open_app(&app_name, always_update)?),
         Action::Add {
             app_name,
             exe_name,
