@@ -24,11 +24,12 @@ pub enum Action {
     /// Opens an app.
     #[clap(short_flag = 'o')]
     Open {
-        /// Name of app to open.
+        /// Nice name of app to open.
         app_name: String,
-        /// Will always attempt to update the app path before opening. Handy for apps that have regular updates.
+        /// If the app path no longer exists, it will attempt to get the latest app path and update the database prior to opening.
+        /// Handy for apps that have regular updates.
         #[arg(long, default_value = "false")]
-        always_update: bool,
+        check_app_path: bool,
     },
 
     /// Adds an app to the database.
@@ -76,13 +77,13 @@ pub enum Action {
     #[clap(short_flag = 'd')]
     Delete { app_name: String },
 
-    /// Update the running folder for selected apps. No app named means all in database.
+    /// Update the app path for selected apps. No app named means all in database.
     #[clap(short_flag = 'u')]
     Update {
         /// App name to update.
         app_name: Option<String>,
 
-        /// Force update of all apps in datanase and skip confirmation prompt.
+        /// Force update of all apps in database and skip confirmation prompt.
         #[arg(long, default_value = "false")]
         force: bool,
     },
@@ -137,8 +138,8 @@ pub fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
     match args.action {
         Action::Open {
             app_name,
-            always_update,
-        } => Ok(actions::open_app(&app_name, always_update)?),
+            check_app_path,
+        } => Ok(actions::open_app(&app_name, check_app_path)?),
         Action::Add {
             app_name,
             exe_name,

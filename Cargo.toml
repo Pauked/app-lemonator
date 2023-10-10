@@ -1,6 +1,6 @@
 [package]
 name = "app-lemonator"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "App-Lemonator - Keeps the running of your apps lemony fresh!"
 authors = ["Paul Healey"]
