@@ -18,3 +18,5 @@
 [ ] Add GitHub action to build for Windows and MacOS and create releases
 [x] Add arg for --always-update that checks app path, if not exists (like WhatsApp on a weekly basis), it attempts an update without asking
 [ ] Show errors in a HTML page? Add arg --html-output.
+[ ] Run a console app from a PowerShell script that keeps it open. New app type of console_pause (Windows only)
+[ ] Add an app_settings table for various switches (like --check-app-path )

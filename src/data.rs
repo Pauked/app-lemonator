@@ -1,6 +1,6 @@
 use chrono::{DateTime, Datelike, Local, Timelike, Utc};
 use clap::ValueEnum;
-use colored::Colorize;
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use strum_macros::Display;

@@ -5,9 +5,9 @@ use std::{
 };
 
 use chrono::Local;
-use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error};
+use owo_colors::OwoColorize;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;

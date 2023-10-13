@@ -1,7 +1,6 @@
 use std::{fs::File, io::Write};
 
 use color_eyre::{eyre::Context, owo_colors::OwoColorize, Report, Result};
-use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use log::{debug, error, info};
 use tabled::{

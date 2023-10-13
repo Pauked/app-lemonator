@@ -4,9 +4,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use colored::Colorize;
 use eyre::{eyre, Context, Report, Result};
 use log::{debug, error};
+use owo_colors::OwoColorize;
 use plist::Value;
 use powershell_script::PsScriptBuilder;
 

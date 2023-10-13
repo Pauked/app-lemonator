@@ -1,7 +1,7 @@
 use std::{ffi::OsStr, process::Command};
 
-use colored::Colorize;
 use eyre::Context;
+use owo_colors::OwoColorize;
 
 use crate::{data, paths};
 
