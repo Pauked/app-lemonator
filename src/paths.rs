@@ -19,9 +19,9 @@ use crate::constants;
 
 #[derive(Display, EnumString)]
 pub enum BaseFolderType {
-    #[strum(serialize = "appdata")]
-    LocalAppData,
     #[strum(serialize = "localappdata")]
+    LocalAppData,
+    #[strum(serialize = "appdata")]
     RoamingAppData,
     #[strum(serialize = "personaldropbox")]
     PersonalDropbox,
@@ -29,12 +29,10 @@ pub enum BaseFolderType {
     BusinessDropbox,
     #[strum(serialize = "programfiles")]
     ProgramFiles,
-    #[strum(serialize = "programfiles(x86)")]
+    #[strum(serialize = "programfilesx86")]
     ProgramFilesX86,
     #[strum(serialize = "windir")]
     WinDir,
-    #[strum(serialize = "systemroot")]
-    SystemRoot,
     #[strum(serialize = "homepath")]
     HomePath,
     #[strum(serialize = "temp")]
@@ -343,7 +341,6 @@ pub fn get_base_folder(source_folder: &str) -> String {
                 BaseFolderType::ProgramFiles
                 | BaseFolderType::ProgramFilesX86
                 | BaseFolderType::WinDir
-                | BaseFolderType::SystemRoot
                 | BaseFolderType::HomePath
                 | BaseFolderType::Temp => {
                     env_var_value = get_environment_folder(base_folder_type);

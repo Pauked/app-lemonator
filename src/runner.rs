@@ -40,6 +40,9 @@ pub fn open_process(app: data::App, app_path: &str) -> Result<String, eyre::Repo
 
 fn get_display_args(cmd: &Command) -> String {
     let cmd_args: Vec<&OsStr> = cmd.get_args().collect();
+    if cmd_args.is_empty() {
+        return String::new();
+    }
     let result: String = cmd_args
         .iter()
         .filter_map(|s| s.to_str()) // Convert each &OsStr to Option<&str>

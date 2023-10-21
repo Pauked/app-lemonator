@@ -115,7 +115,7 @@ pub fn get_apps() -> Result<Vec<data::App>, Report> {
     runtime.block_on(async {
         let db = get_db().await;
 
-        sqlx::query_as::<_, data::App>("SELECT * FROM apps")
+        sqlx::query_as::<_, data::App>("SELECT * FROM apps ORDER BY app_name")
             .fetch_all(&db)
             .await
             .wrap_err("Failed to get list of all apps")
