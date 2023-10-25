@@ -371,7 +371,11 @@ mod tests {
     use std::path::PathBuf;
 
     #[cfg(target_os = "windows")]
-    use crate::paths::{get_base_folder, get_export_file_name, get_local_app_data_folder};
+    use crate::paths::{
+        get_base_folder, get_export_file_name, get_local_app_data_folder,
+        get_roaming_app_data_folder,
+    };
+
     use crate::paths::{get_dropbox_folder_from_json, parse_arguments, BaseFolderType};
 
     #[cfg(target_os = "windows")]
@@ -379,6 +383,22 @@ mod tests {
     fn check_roaming_app_data_folder() {
         // Arrange
         let source_path = r"%appdata%\JetBrains";
+        let mut file_path = PathBuf::from(get_roaming_app_data_folder());
+        file_path.push("JetBrains");
+        let expected = file_path.display().to_string();
+
+        // Act
+        let actual = get_base_folder(source_path);
+
+        // Assert
+        assert_eq!(actual, expected);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn check_local_app_data_folder() {
+        // Arrange
+        let source_path = r"%localappdata%\JetBrains";
         let mut file_path = PathBuf::from(get_local_app_data_folder());
         file_path.push("JetBrains");
         let expected = file_path.display().to_string();
