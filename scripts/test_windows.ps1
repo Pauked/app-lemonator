@@ -1,5 +1,5 @@
 # Test script to initialise the database with some apps and run various commands.
-# Written for Windows. Should run without errors.
+# Written for Windows.
 
 # Set top level variables
 $lemonator_path = ".\target\debug\app-lemonator.exe"
@@ -23,7 +23,7 @@ $export_file = ".\scripts\test-export.json"
 & $lemonator_path add ch-p1 chrome.exe "%programfiles%\Google\Chrome\Application" shortcut --params " --args --profile-directory='Profile 1'"
 & $lemonator_path add ztree conhost.exe "%windir%\System32" shortcut --params " %personaldropbox%\Utils\Ztree\ZTW.EXE"
 
-# Duff apps to test the error handling
+# Duff apps to test the error handling. These will error on "update" because it can't find the apps.
 & $lemonator_path add Bob bob.exe %temp% folder-search
 & $lemonator_path add Jeff onenoteim.exe "*jeffyson*" ps-get-app
 & $lemonator_path add simon simon.exe "C:\Simon Files" shortcut
@@ -56,3 +56,8 @@ $export_file = ".\scripts\test-export.json"
 
 # Final export to JSON file
 & $lemonator_path export $export_file --force
+
+# Examples of opening, but commented out as they will open the apps
+# & $lemonator_path open WinTerm
+# & $lemonator_path open Rider
+# & $lemonator_path open ch-p1

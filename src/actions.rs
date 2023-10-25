@@ -23,7 +23,7 @@ pub fn create_db() -> Result<bool, Report> {
     db::create_db()
 }
 
-pub fn open_app(app_name: &str, check_app_path: bool) -> Result<String, Report> {
+pub fn open_app(app_name: &str) -> Result<String, Report> {
     let app = db::get_app(app_name).wrap_err("Unable to open app".to_string())?;
 
     let current_app_file_version = if let Some(app_path) = &app.app_path {
@@ -42,17 +42,15 @@ pub fn open_app(app_name: &str, check_app_path: bool) -> Result<String, Report> 
 
     // Just getting the latest app path/file version regardless is not a quick process
     // so lets check if the app path exists first. If it doesn't, then we'll get the latest info.
-    let update_app_file_version =
-        if check_app_path && !paths::check_app_exists(&update_app_file_version.path) {
-            finder::get_app_file_version(app.clone(), None)
-                .wrap_err("Unable to open app".to_string())?
-        } else {
-            update_app_file_version
-        };
+    let update_app_file_version = if !paths::check_app_exists(&update_app_file_version.path) {
+        finder::get_app_file_version(app.clone(), None)
+            .wrap_err("Unable to open app".to_string())?
+    } else {
+        update_app_file_version
+    };
 
     // Check the app exists, update last run date/time and file version information
     if paths::check_app_exists(&update_app_file_version.path) {
-        // FIXME Move update app path to here? Should Database code be in here?
         db::update_app_file_version(app.id, &update_app_file_version).wrap_err(format!(
             "Error updating app_path for '{}'",
             app.app_name.blue(),

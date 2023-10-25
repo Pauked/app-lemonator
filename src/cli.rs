@@ -26,10 +26,6 @@ pub enum Action {
     Open {
         /// Nice name of app to open.
         app_name: String,
-        /// If the app path no longer exists, it will attempt to get the latest app path and update the database prior to opening.
-        /// Handy for apps that have regular updates.
-        #[arg(long, default_value = "false")]
-        check_app_path: bool,
     },
 
     /// Adds an app to the database.
@@ -136,10 +132,7 @@ pub fn run_cli_action(args: Args) -> Result<String, eyre::Report> {
     }
 
     match args.action {
-        Action::Open {
-            app_name,
-            check_app_path,
-        } => Ok(actions::open_app(&app_name, check_app_path)?),
+        Action::Open { app_name } => Ok(actions::open_app(&app_name)?),
         Action::Add {
             app_name,
             exe_name,
