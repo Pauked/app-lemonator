@@ -141,6 +141,9 @@ fn get_macos_file_version_information(full_path: &str) -> Result<(String, String
     let plist_path = Path::new(full_path).join("Contents").join("Info.plist");
 
     // Open the plist file
+    if !paths::file_exists(&plist_path.display().to_string()) {
+        return Ok(("0.0.0.0".to_string(), "".to_string()));
+    }
     let file = File::open(plist_path)?;
 
     // Parse the plist file

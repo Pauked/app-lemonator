@@ -66,7 +66,9 @@ pub fn find_file_in_folders(root_folder: &str, find_file: &str, results: &mut Ve
     for entry in WalkDir::new(root_folder) {
         if let Ok(entry) = entry {
             // Check if the file name matches
-            if entry.file_name().to_string_lossy().to_lowercase() == find_file.to_lowercase() {
+            if entry.file_name().to_string_lossy().to_lowercase() == find_file.to_lowercase()
+                && entry.file_type().is_file()
+            {
                 found_count += 1;
                 results.push(entry.path().display().to_string());
             }
@@ -110,21 +112,34 @@ fn get_matches_count(found_count: i32) -> String {
 }
 
 fn truncate_middle(input: &str, size_limit: usize) -> String {
-    let input_len = input.len();
+    // Yes this method is horrible. It is coping with folder paths that may
+    // contain unicode characters and if truncated incorrectly will cause a
+    // "assertion failed: self.is_char_boundary(n)" error.
 
-    if input_len <= size_limit {
+    if input.len() <= size_limit {
         // No need to truncate, return the original string.
         return input.to_string();
     }
 
-    let middle_index = input_len / 2;
-    let half_size_limit = size_limit / 2;
-    let start_index = middle_index - half_size_limit;
-    let end_index = middle_index + half_size_limit;
+    // debug!("truncate_middle: '{}' / {}", input, size_limit);
+    let half_size_limit = size_limit.saturating_sub(2) / 2; // Make space for ".."
 
-    // Remove the middle section from the string.
-    let mut output: String = input.to_string();
-    output.replace_range(start_index..end_index, "..");
+    // Find the start and end byte indices directly, adjusting for character boundaries.
+    let mut start_byte_index = input.len() / 2 - half_size_limit;
+    while !input.is_char_boundary(start_byte_index) && start_byte_index < input.len() {
+        start_byte_index += 1;
+    }
+
+    let mut end_byte_index = input.len() / 2 + half_size_limit;
+    while !input.is_char_boundary(end_byte_index) && end_byte_index > 0 {
+        end_byte_index -= 1;
+    }
+
+    // Construct the truncated string.
+    let mut output = String::with_capacity(size_limit);
+    output.push_str(&input[..start_byte_index]);
+    output.push_str("..");
+    output.push_str(&input[end_byte_index..]);
     output
 }
 
@@ -267,7 +282,14 @@ fn get_dropbox_folder(base_folder_type: BaseFolderType) -> String {
     }
 
     if env::consts::OS == constants::OS_MACOS {
-        panic!("Implement get_dropbox_folder() for macOS");
+        let dropbox_location = "~/.dropbox/info.json";
+        dropbox_config_path = resolve_path(dropbox_location);
+        debug!("Dropbox config path: '{}'", dropbox_config_path);
+
+        if !file_exists(&dropbox_config_path) {
+            error!("Failed to find Dropbox config file.");
+            return String::new();
+        };
     }
 
     let json = std::fs::read_to_string(&dropbox_config_path).unwrap();
@@ -355,6 +377,8 @@ pub fn get_base_folder(source_folder: &str) -> String {
             .to_string();
 
         debug!("Expanded base folder: '{}'", output);
+    } else {
+        output = resolve_path(&output);
     }
 
     output
@@ -363,6 +387,17 @@ pub fn get_base_folder(source_folder: &str) -> String {
 pub fn parse_arguments(input: &str) -> Vec<String> {
     let escaped_arguments = input.replace('\\', r"\\");
     shlex::split(&escaped_arguments).unwrap_or_default()
+}
+
+pub fn resolve_path(folder_path: &str) -> String {
+    if env::consts::OS == constants::OS_MACOS && folder_path.starts_with("~/") {
+        if let Some(home) = dirs::home_dir() {
+            // Replace ~ with the home directory
+            return folder_path.replacen('~', &home.to_string_lossy(), 1);
+        }
+    }
+
+    folder_path.to_string()
 }
 
 #[cfg(test)]

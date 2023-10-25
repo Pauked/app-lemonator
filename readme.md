@@ -1,6 +1,6 @@
 # Welcome to App Lemonator
 
-App Lemonator is a console app for quickly launching and managing your application shortcuts. Originally written to handle the strange hidden locations of Windows App Store apps and the difficulties of opening them consistently from an Elgato Stream Deck, it has since grown to be a general purpose app launcher.
+App Lemonator is a console app for quickly launching and managing your application shortcuts. Originally written to handle the hidden locations of Windows App Store apps and the difficulties of consistently opening them from an Elgato Stream Deck, it has since grown to be a general purpose app launcher.
 
 **Think of it as a mini shortcut database. You give it details on an app and it will try its darndest to keep its app path up to date and launch it when you ask it to.**
 
@@ -14,6 +14,10 @@ You can download the latest release from the [releases page](https://github.com/
 
 ## Quick Start
 
+It is a console app so you will need to open a Command Prompt, PowerShell Prompt or Terminal window to use it. You can then run it from the folder you extracted it to. It will create a local Sqlite database in the same folder to store any settings.
+
+### Adding apps
+
 To add apps, use the ``add`` command. For example:
 
 ```powershell
@@ -23,6 +27,8 @@ To add apps, use the ``add`` command. For example:
 ```
 
 You can use the ``--params`` argument to pass additional parameters to the app when it is launched.
+
+### Opening apps
 
 To open an app, use the ``open`` command. For example:
 
@@ -36,6 +42,8 @@ If you're using an [Elgato Stream Deck](https://www.elgato.com/uk/en/s/welcome-t
 
 _Note: On first open of an app it will go to find and set the app path. This can take a few seconds, especially if it doing a folder search across a large number of sub folders. On next run it will use the saved app path. If an app path no longer exists prior to opening, it will attempt to find the app again._
 
+### Updating apps
+
 To manually update the app path of an individual app, use the ``update`` command with the app name. For example:
 
 ```powershell
@@ -48,11 +56,15 @@ To update all apps in your database, don't pass any arguments to the ``update`` 
 .\app-lemonator.exe update
 ```
 
+### Deleting apps
+
 To delete an individual app, use the ``delete`` command with the app name. For example:
 
 ```powershell
 .\app-lemonator.exe delete WinTerm
 ```
+
+### Listing apps
 
 If you want to see what apps are configured, use the ``list`` command. You can use ``--full`` to get a complete output. For example:
 
@@ -77,11 +89,13 @@ You would get output like this:
 └──────────┴────────────────────────────────────────────────────┴─────────────────────┴─────────────────────┘
 ```
 
-For furter details, use ``--help`` to get a list of the available options. A more detailed example can be found in [Windows PowerShell test script](scripts/test_windows.ps1).
+### Further Help
+
+For further details, use ``--help`` to get a list of the available agruments. A more detailed example is listed in the [Windows PowerShell test script](scripts/test_windows.ps1).
 
 ## Search Methods
 
-App Lemonator allows you define different search methods for your apps:
+App Lemonator allows you to select different search methods for your apps:
 
 - ``ps-get-app`` - Uses PowerShell to search for apps installed from the Windows App Store.
 - ``folder-search`` - Searches a folder for an app. You give it a base folder and it will recursively search and use the highest version number of the executable.
@@ -110,10 +124,10 @@ _The above shortcuts are only available on Windows. It will look for your Dropbo
 
 ## Logging
 
-If you want to see what App Lemonator is doing under the hood, open ``%temp%\app-lemonator.log`` in a text editor of your choice on Windows. The same log file will in your temp folder on macOS.
+If you want to see what App Lemonator is doing under the hood, open ``%temp%\app-lemonator.log`` in a text editor of your choice on Windows. The same log file will be in your temp folder on macOS (you can use ``echo $TMPDIR`` in a Terminal window to find it).
 
 ## macOS support
 
-Whilst the app was primarily written for Windows it also works on macOS. The app acts more as a simple shortcut manager on macOS. Features related to grepping PowerShell output from the Windows App Store and Windows environment path shortcuts are not relevant on macOS.
+Whilst the app was primarily written for Windows it also works on macOS. The app acts more as a simple shortcut manager on macOS support the ``folder-search`` and ``shortcut`` options. Features related to grepping PowerShell output from the Windows App Store and Windows environment path shortcuts are not relevant on macOS.
 
 If there is a need for more macOS specific features, please raise an issue and I'll see what I can do.

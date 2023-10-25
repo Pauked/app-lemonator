@@ -1,6 +1,6 @@
 use clap::Parser;
 use log::debug;
-use std::process;
+use std::{process, env};
 
 mod actions;
 mod cli;
@@ -23,6 +23,14 @@ fn run() -> eyre::Result<String> {
         paths::get_current_exe(),
         constants::CRATE_VERSION,
     );
+
+    // For now, only works on Windows. Needs more work on macOS. Linux is a probably not.
+    if env::consts::OS != constants::OS_WINDOWS {
+        return Err(eyre::eyre!(
+            "This app only works on Windows. You are running on '{}'",
+            env::consts::OS
+        ));
+    }
 
     let args = cli::Args::parse();
     log::debug!("Args {:?}", args);
