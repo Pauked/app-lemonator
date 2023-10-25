@@ -20,32 +20,24 @@ pub struct FileVersion {
 }
 
 impl FileVersion {
-    pub fn new(
-        app_description: String,
-        path: String,
-        version: String,
-    ) -> Self {
+    pub fn new(app_description: String, path: String, version: String) -> Self {
         match finder::parse_file_version_to_i32(&version) {
-            Some((major, minor, build, revision)) => {
-                Self {
-                    app_description,
-                    path,
-                    major,
-                    minor,
-                    build,
-                    revision,
-                }
-            }
-            None => {
-                Self {
-                    app_description,
-                    path,
-                    major: 0,
-                    minor: 0,
-                    build: 0,
-                    revision: 0,
-                }
-            }
+            Some((major, minor, build, revision)) => Self {
+                app_description,
+                path,
+                major,
+                minor,
+                build,
+                revision,
+            },
+            None => Self {
+                app_description,
+                path,
+                major: 0,
+                minor: 0,
+                build: 0,
+                revision: 0,
+            },
         }
     }
 

@@ -8,7 +8,7 @@ It has some smarts around finding your apps and there are path shortcuts you can
 
 ## Installation
 
-App Lemonator is a self contained executable that can be run from anywhere on Windows and macOS. It does not require any installation. On first run it will create a local Sqlite database to store any settings. It is entirely written in Rust because it's a fun thing to do in 2023!
+App Lemonator is a self contained executable that can be run from anywhere on Windows. It does not require any installation. On first run it will create a local Sqlite database to store any settings. It is entirely written in Rust because it's a fun thing to do in 2023!
 
 You can download the latest release from the [releases page](https://github.com/Pauked/app-lemonator/releases) and then extract the ZIP or DMG file to a folder of your choice.
 
@@ -113,21 +113,15 @@ App Lemonator supports various path shortcuts:
 - ``%temp%`` - The current user's Temp folder
 - ``%windir%`` - The Windows folder
 
-_The above shortcuts are only available on Windows. You can type them into Explorer to check what there are._
+_You can check these by typing them into Explorer._
 
 App Lemonator also has the ability to work out where your Dropbox folder is and use that as a shortcut. This is useful for apps that store their settings in Dropbox.
 
 - ``%personaldropbox%`` - The current user's Personal Dropbox folder
 - ``%businessdropbox%`` - The current user's Business Dropbox folder
 
-_The above shortcuts are only available on Windows. It will look for your Dropbox\info.json file and parse out the correct folder._
+_This works by looking for your Dropbox\info.json file and parsing out the correct folder._
 
 ## Logging
 
-If you want to see what App Lemonator is doing under the hood, open ``%temp%\app-lemonator.log`` in a text editor of your choice on Windows. The same log file will be in your temp folder on macOS (you can use ``echo $TMPDIR`` in a Terminal window to find it).
-
-## macOS support
-
-Whilst the app was primarily written for Windows it also works on macOS. The app acts more as a simple shortcut manager on macOS support the ``folder-search`` and ``shortcut`` options. Features related to grepping PowerShell output from the Windows App Store and Windows environment path shortcuts are not relevant on macOS.
-
-If there is a need for more macOS specific features, please raise an issue and I'll see what I can do.
+If you want to see what App Lemonator is doing under the hood, open ``%temp%\app-lemonator.log`` in a text editor of your choice.

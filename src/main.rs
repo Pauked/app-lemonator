@@ -1,6 +1,6 @@
 use clap::Parser;
 use log::debug;
-use std::{process, env};
+use std::{env, process};
 
 mod actions;
 mod cli;
