@@ -43,8 +43,8 @@ $version = ($versionLine -split '=')[1].Trim().Trim('"')
 $appName = ($nameLine -split '=')[1].Trim().Trim('"')
 
 # Convert readme.md to readme.html using mangler
-$manglerCmd = "$env:LocalBuildTools\$env:ExeMangler readme.md readme.html 'App Lemonator readme'"
-Invoke-Expression $manglerCmd
+$manglerPath = Join-Path $env:LocalBuildTools $env:ExeMangler
+& "$manglerPath" "readme.md" "readme.html" "App Lemonator readme"
 
 # [Build Process]
 if ($env:IsWindows) {
