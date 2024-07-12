@@ -17,14 +17,14 @@ sqlx = { version = "0.7", features = [
     "chrono",
 ] }
 tokio = { version = "1.32", features = ["macros", "rt-multi-thread"] }
-owo-colors = "3"
-strum = "0.25"
-strum_macros = "0.25"
+owo-colors = "4"
+strum = "0.26"
+strum_macros = "0.26"
 regex = "1.9"
 eyre = "0.6"
 color-eyre = { version = "0.6", default-features = false }
 chrono = "0.4"
-tabled = "0.14"
+tabled = "0.15"
 log = "0.4"
 log4rs = "1"
 dialoguer = "0.11"

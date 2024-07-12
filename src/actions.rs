@@ -283,7 +283,7 @@ pub fn list_app(app_name: Option<String>, list_type: ListType) -> Result<String,
                     .to_string(),
                 ListType::Summary => {
                     let mut builder = Builder::default();
-                    builder.set_header(["App Name", "App Path", "Last Opened", "Last Updated"]);
+                    builder.push_record(["App Name", "App Path", "Last Opened", "Last Updated"]);
                     for app in apps {
                         builder.push_record([
                             app.app_name,
@@ -327,10 +327,7 @@ pub fn reset(force: bool) -> Result<String, Report> {
 pub fn export(file_out: Option<String>, force: bool) -> Result<String, Report> {
     let apps = db::get_apps().wrap_err("Unable to export".to_string())?;
 
-    let file_checked: String = match file_out {
-        Some(file) => file,
-        None => String::new(),
-    };
+    let file_checked: String = file_out.unwrap_or_default();
     let output_file = paths::get_export_file_name(
         &file_checked,
         dirs::document_dir().unwrap(),

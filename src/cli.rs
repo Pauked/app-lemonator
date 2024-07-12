@@ -84,7 +84,7 @@ pub enum Action {
         force: bool,
     },
 
-    /// Lists all apps in the database.
+    /// Lists all apps in the database. Pass app name for full app details.
     #[clap(short_flag = 'l')]
     List {
         /// Individual app name to list.
