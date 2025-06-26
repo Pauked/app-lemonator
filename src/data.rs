@@ -88,28 +88,28 @@ pub struct App {
     pub app_name: String,
     #[tabled(rename = "Exe Name")]
     pub exe_name: String,
-    #[tabled(rename = "Params", display_with = "display_option_string")]
+    #[tabled(rename = "Params", display("display_option_string"))]
     pub params: Option<String>,
     #[tabled(rename = "Search Term")]
     pub search_term: String,
     #[tabled(rename = "Search Method")]
     pub search_method: SearchMethod,
-    #[tabled(rename = "App Path", display_with = "display_option_string")]
+    #[tabled(rename = "App Path", display("display_option_string"))]
     pub app_path: Option<String>,
-    #[tabled(rename = "App Description", display_with = "display_option_string")]
+    #[tabled(rename = "App Description", display("display_option_string"))]
     pub app_description: Option<String>,
-    #[tabled(rename = "App Version", display_with = "display_option_string")]
+    #[tabled(rename = "App Version", display("display_option_string"))]
     pub app_version: Option<String>,
     #[serde(skip)]
     #[tabled(
         rename = "Last Opened",
-        display_with = "display_option_utc_datetime_to_local"
+        display("display_option_utc_datetime_to_local")
     )]
     pub last_opened: Option<DateTime<Utc>>,
     #[serde(skip)]
     #[tabled(
         rename = "Last Updated",
-        display_with = "display_option_utc_datetime_to_local"
+        display("display_option_utc_datetime_to_local")
     )]
     pub last_updated: Option<DateTime<Utc>>,
     #[tabled(rename = "Operating System")]

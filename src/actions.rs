@@ -278,7 +278,7 @@ pub fn list_app(app_name: Option<String>, list_type: ListType) -> Result<String,
 
             let table = match list_type {
                 ListType::Full => tabled::Table::new(apps)
-                    .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
+                    .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words(true)))
                     .with(Style::modern())
                     .to_string(),
                 ListType::Summary => {
@@ -294,7 +294,7 @@ pub fn list_app(app_name: Option<String>, list_type: ListType) -> Result<String,
                     }
                     let mut table = builder.build();
                     table
-                        .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words()))
+                        .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words(true)))
                         .with(Style::modern())
                         .to_string()
                 }
